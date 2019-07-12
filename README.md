@@ -59,6 +59,11 @@ lab$ bazel run :python_random_agent --define graphics=sdl -- \
 Here is some [more detailed build documentation](/docs/users/build.md),
 including how to install dependencies if you don't have them.
 
+To enable compiler optimizations, pass the flag `--compilation_mode=opt`, or
+`-c opt` for short, to each `bazel build`, `bazel test` and `bazel run` command.
+The flag is omitted from the examples here for brevity, but it should be used
+for real training and evaluation where performance matters.
+
 ### Play as a human
 
 To test the game using human input controls, run
@@ -70,6 +75,14 @@ lab$ bazel run :game -- -l tests/empty_room_test -s logToStdErr=true
 ```
 
 Leave the `logToStdErr` setting off to disable most log output.
+
+The values of observations that the environment exposes can be printed at every
+step by adding a flag `--observation OBSERVATION_NAME` for each observation of
+interest.
+
+```shell
+lab$ bazel run :game -- --level_script=lt_chasm --observation VEL.TRANS --observation VEL.ROT
+```
 
 ### Train an agent
 
@@ -85,9 +98,10 @@ lab$ bazel run :python_random_agent
 The [Python API](/docs/users/python_api.md)
 is used for agent-environment interactions.
 
-*DeepMind Lab* ships with different levels implementing different tasks. These
-tasks can be configured using Lua scripts, as described in the
-[Lua API](/docs/developers/reference/lua_api.md).
+*DeepMind Lab* ships with [different
+levels](/docs/levels.md) implementing different
+tasks. These tasks can be configured using Lua scripts, as described in the [Lua
+API](/docs/developers/reference/lua_api.md).
 
 -----------------
 
@@ -110,7 +124,7 @@ with those projects are best fixed upstream and then merged into *DeepMind Lab*.
 
 * *ioquake3* is taken from
   [github.com/ioquake/ioq3](https://github.com/ioquake/ioq3),
-  revision 738465d677bddac1385da7d6099b58ca0c4a797f. The code contains extensive
+  revision 29db64070aa0bae49953bddbedbed5e317af48ba. The code contains extensive
   modifications and additions. We aim to merge upstream changes occasionally.
 
 We are very grateful to the maintainers of these repositories for all their hard
@@ -142,15 +156,15 @@ software libraries, which we ship in several different ways:
  * Several additional libraries are required but are not shipped in any form;
    they must be present on your system:
    * SDL 2
-   * Lua 5.1 (later versions might work, too)
    * gettext (required by `glib`)
    * OpenGL: A hardware driver and library are needed for hardware-accelerated
      human play. The headless library that machine learning agents will want to
      use can use either hardware-accelerated rendering via EGL or GLX or
      software rendering via OSMesa, depending on the `--define headless=...`
      build setting.
-   * Python 2.7 (other versions might work, too) with NumPy, PIL. (A few
-     tests require a NumPy version of at least 1.8.)
+   * Python 2.7 (other versions might work, too) with NumPy, PIL. (A few tests
+     require a NumPy version of at least 1.8.) Python 3 (at least 3.5) is
+     supported experimentally.
 
 The build rules are using a few compiler settings that are specific to GCC. If
 some flags are not recognized by your compiler (typically those would be

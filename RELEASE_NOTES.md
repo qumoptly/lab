@@ -1,6 +1,61 @@
 # DeepMind Lab Release Notes
 
-## Current Release
+## Next Release
+
+### Minor Improvements:
+
+1.  The `game` demo executable can now print observations at each step.
+
+### Bug Fixes
+
+1.  Observation 'DEBUG.CAMERA_INTERLEAVED.TOP_DOWN' is now correct for levels
+    `dmlab30/explore_object_rewards_{few,many}`.
+
+    An error is now raised if there is not enough space to place every possible
+    room (regardless of whether the random generation _actually_ produces a room
+    of excessive size) and if a non-zero number of rooms was requested.
+
+    The affected levels have been updated and will generate layouts similar to
+    before, but the whole maze is offset by 100 units, and object placements
+    will change.
+
+## release-2019-02-04 February 2019 release
+
+### New Levels:
+
+1.  Psychlab.
+
+    1. contributed/psychlab/harlow
+
+### Minor Improvements:
+
+1.  Improve documentation of how to configure non-hermetic dependencies (Lua,
+    Python, NumPy).
+2.  Add 'allowHoldOutLevels' setting to allow running of levels that should not
+    be trained on, but held out for evaluation.
+3.  Add logging library 'common.log', which provides the ability to control which
+    log messages are emitted via the setting 'logLevel'.
+4.  Update the ioq3 upstream code to the [latest
+    state](https://github.com/ioquake/ioq3/tree/29db64070aa0bae49953bddbedbed5e317af48ba).
+5.  Lua 5.1 is now downloaded and built from source, and is thus no longer a
+    required local dependency.
+6.  A minimal version of the "realpath" utility is now bundled with the code,
+    and thus "realpath" is no longer a required local dependency.
+
+### Bug Fixes:
+
+1.  Prevent missing sounds from causing clients to disconnect.
+2.  Fix a bug in the call of the theme callback 'placeFloorModels', which had
+    caused an "'index' is missing" error during compilation of text levels with
+    texture sets that use floor models, such as MINESWEEPER, GO, and PACMAN.
+3.  Fix bug where levels 'keys_doors_medium', 'keys_doors_random' and
+    'rooms_keys_doors_puzzle' would not accept the common 'logLevel' setting.
+4.  Expose a 'demofiles' command line flag for the Python random agent, without
+    which the agent was not able to record or play back demos.
+5.  Fix a memory deallocation order error introduced by [an earlier
+    commit](https://github.com/deepmind/lab/commit/467f2de3a5c495e0c879023b73fe9ed2a86bc69c).
+
+## release-2018-06-20 June 2018 release
 
 ### New Levels:
 
@@ -24,6 +79,8 @@
 2.  The demo `:game` has a new flag `--start_index` to start at an episode index
     other than 0.
 3.  Add a console command `dm_pickup` to pick up an item identified by its `id`.
+4.  More Python demos and tests now work with Python 3.
+5.  Add a shader for rendering decals with transparency.
 
 ## release-2018-05-15 May 2018 release
 

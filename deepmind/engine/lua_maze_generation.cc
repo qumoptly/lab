@@ -136,7 +136,9 @@ lua::NResultsOr LuaMazeGeneration::Require(lua_State* L) {
 
 lua::NResultsOr LuaMazeGeneration::Create(lua_State* L) {
   lua::TableRef table;
-  lua::Read(L, -1, &table);
+  if (!lua::Read(L, -1, &table)) {
+    return  "[mazeGeneration] - Must be called with a table.";
+  }
   if (table.Contains("entity")) {
     std::string entity_layer;
     if (!table.LookUp("entity", &entity_layer) || entity_layer.empty()) {
@@ -210,6 +212,15 @@ lua::NResultsOr LuaMazeGeneration::CreateRandom(lua_State* L) {
     return "[randomMazeGeneration] - Must construct with positive odd "
            "roomMaxSize";
   }
+
+  if (max_rooms > 0 &&
+      (room_max_size + 2 > height || room_max_size + 2 > width)) {
+    return absl::StrCat(
+        "[randomMazeGeneration] - roomMaxSize must be less than width or "
+        "height. roomMaxSize: ",
+        room_max_size, " height: ", height, " width: ", width);
+  }
+
   int retry_count = kDefaultRetryCount;
   table.LookUp("retryCount", &retry_count);
   if (retry_count <= 0) {

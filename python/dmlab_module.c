@@ -49,7 +49,6 @@
 // zero-initialized.
 typedef struct {
   char runfiles_path[4096];  // Populated during module initialization below.
-  PyTypeObject lab_type;
 } LabModuleState;
 
 static LabModuleState* get_module_state(PyObject* module);  // defined below
@@ -107,6 +106,9 @@ static bool fetch_level_from_cache(void* level_cache_context,
                                    int num_cache_paths,
                                    const char* key,
                                    const char* pk3_path) {
+  // If an error is already pending in the runtime, we take no further action.
+  if (PyErr_Occurred()) return false;
+
   // We ignore cache paths. They can be set in level cache Python object.
   PyObject* output = PyObject_CallMethod(
       level_cache_context, "fetch", "ss", key, pk3_path);
@@ -123,6 +125,9 @@ static void write_level_to_cache(void* level_cache_context,
                                  int num_cache_paths,
                                  const char* key,
                                  const char* pk3_path) {
+  // If an error is already pending in the runtime, we take no further action.
+  if (PyErr_Occurred()) return;
+
   // We ignore cache paths. They can be set in level cache Python object.
   PyObject* output = PyObject_CallMethod(
       level_cache_context, "write", "ss", key, pk3_path);
@@ -166,7 +171,8 @@ static int Lab_init(PyObject* pself, PyObject* args, PyObject* kwds) {
   }
   {
 #if PY_MAJOR_VERSION >= 3
-    PyObject* module = PyImport_AddModule("deepmind_lab");
+    PyObject* module =
+        PyImport_AddModule("deepmind_lab");
     if (module == NULL) {
       PyErr_SetString(PyExc_RuntimeError, "deepmind_lab module not loaded");
       return -1;
@@ -328,6 +334,13 @@ static PyObject* Lab_reset(PyObject* pself, PyObject* args, PyObject* kwds) {
                  self->env_c_api->error_message(self->context));
     return NULL;
   }
+
+  // Check if any other Python exception has been thrown, e.g. in the level
+  // cache.
+  if (PyErr_Occurred() != NULL) {
+    return NULL;
+  }
+
   self->num_steps = 0;
   ++self->episode;
   self->status = ENV_STATUS_INITIALIZED;
@@ -419,9 +432,9 @@ static int ObservationType2typenum(EnvCApi_ObservationType type) {
     case EnvCApi_ObservationBytes:
       return NPY_UINT8;
     case EnvCApi_ObservationString:
+    default:
       return -1;
   }
-  return -1;
 }
 
 static PyObject* Lab_observation_spec(PyObject* pself, PyObject* no_arg) {
@@ -644,13 +657,13 @@ static PyObject* Lab_events(PyObject* pself, PyObject* no_arg) {
       return NULL;
     }
     for (int obs_id = 0; obs_id < event.observation_count; ++obs_id) {
-      PyObject* obs_enty = make_observation(&event.observations[obs_id]);
-      if (obs_enty == NULL) {
+      PyObject* obs_entry = make_observation(&event.observations[obs_id]);
+      if (obs_entry == NULL) {
         Py_DECREF(observation_list);
         Py_DECREF(result);
         return NULL;
       }
-      PyList_SetItem(observation_list, obs_id, obs_enty);
+      PyList_SetItem(observation_list, obs_id, obs_entry);
     }
     PyTuple_SetItem(entry, 1, observation_list);
     PyList_SetItem(result, event_id, entry);
@@ -774,7 +787,7 @@ static PyMethodDef module_methods[] = {
 
 static int load_module_impl(PyObject* module, LabModuleState* state) {
 #if PY_MAJOR_VERSION >= 3
-  PyTypeObject* lab_type = &state->lab_type;
+  PyTypeObject* lab_type = malloc(sizeof(PyTypeObject));
   memcpy(lab_type, &deepmind_lab_LabType, sizeof(PyTypeObject));
 #else  // PY_MAJOR_VERSION >= 3
   PyTypeObject* lab_type = &deepmind_lab_LabType;
@@ -787,12 +800,14 @@ static int load_module_impl(PyObject* module, LabModuleState* state) {
   PyObject *v = PyObject_GetAttrString(module, "__file__");
 #if PY_MAJOR_VERSION >= 3
   if (v && PyUnicode_Check(v)) {
-    const char* file = PyBytes_AsString(PyUnicode_EncodeFSDefault(v));
+    Py_ssize_t len;
+    const char* file = PyUnicode_AsUTF8AndSize(v, &len);
+    if (len < sizeof(state->runfiles_path)) {
 #else  // PY_MAJOR_VERSION >= 3
   if (v && PyString_Check(v)) {
     const char* file = PyString_AsString(v);
-#endif  // PY_MAJOR_VERSION >= 3
     if (strlen(file) < sizeof(state->runfiles_path)) {
+#endif  // PY_MAJOR_VERSION >= 3
       strcpy(state->runfiles_path, file);
     } else {
       PyErr_SetString(PyExc_RuntimeError, "Runfiles directory name too long!");
@@ -813,25 +828,32 @@ static int load_module_impl(PyObject* module, LabModuleState* state) {
     strcpy(state->runfiles_path, ".");
   }
 #else  // DEEPMIND_LAB_MODULE_RUNFILES_DIR
+  static const char kRunfiles[] = ".runfiles/org_deepmind_lab";
+  LabModuleState* module_state = get_module_state(module);
+
 #if PY_MAJOR_VERSION >= 3
   PyObject* u = PyUnicode_FromWideChar(Py_GetProgramFullPath(), -1);
   if (u == NULL) return -1;
-  PyObject* p = PyUnicode_EncodeFSDefault(u);
-  const char* s = PyBytes_AsString(p);
-  size_t n = PyBytes_Size(p);
+  Py_ssize_t n;
+  const char* s = PyUnicode_AsUTF8AndSize(u, &n);
+  if (n + strlen(kRunfiles) < sizeof(module_state->runfiles_path)) {
+    strcpy(module_state->runfiles_path, s);
+    strcat(module_state->runfiles_path, kRunfiles);
+    Py_DECREF(u);
+  } else {
+    Py_DECREF(u);
 #else  // PY_MAJOR_VERSION >= 3
   const char* s = Py_GetProgramFullPath();
   size_t n = strlen(s);
-#endif  // PY_MAJOR_VERSION >= 3
-  static const char kRunfiles[] = ".runfiles/org_deepmind_lab";
-  LabModuleState* module_state = get_module_state(module);
   if (n + strlen(kRunfiles) < sizeof(module_state->runfiles_path)) {
     strcpy(module_state->runfiles_path, s);
     strcat(module_state->runfiles_path, kRunfiles);
   } else {
+#endif  // PY_MAJOR_VERSION >= 3
     PyErr_SetString(PyExc_RuntimeError, "Runfiles directory name too long!");
     return -1;
   }
+
 #endif  // DEEPMIND_LAB_MODULE_RUNFILES_DIR
 
   srand(time(NULL));

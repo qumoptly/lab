@@ -21,6 +21,7 @@
 #include <fstream>
 #include <functional>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "deepmind/engine/lua_random.h"
@@ -205,6 +206,7 @@ class LuaTheme : public Theme {
     lua::TableRef floor_locs = lua::TableRef::Create(lua_state_);
     for (std::size_t i = 0, e = floor_locations.size(); i < e; ++i) {
       lua::TableRef floor_loc_table = lua::TableRef::Create(lua_state_);
+      floor_loc_table.Insert("index", i + 1);
       floor_loc_table.Insert("i", floor_locations[i].cell.x());
       floor_loc_table.Insert("j", floor_locations[i].cell.y());
       floor_loc_table.Insert("variation", floor_locations[i].variation);
@@ -241,7 +243,7 @@ class LuaTheme : public Theme {
 
  private:
   Texture ReadThemeTexture(const std::string& name, int variation) {
-    auto pair = theme_cache_.emplace(variation, lua::TableRef());
+    auto pair = theme_cache_.try_emplace(variation, lua::TableRef());
     if (pair.second) {
       theme_.PushMemberFunction("mazeVariation");
       const char variation_char = variation;
@@ -298,7 +300,7 @@ class LuaTheme : public Theme {
     return Model{std::move(name), scale, angle};
   }
 
-  std::unordered_map<int, lua::TableRef> theme_cache_;
+  absl::flat_hash_map<int, lua::TableRef> theme_cache_;
   lua_State* lua_state_;
   lua::TableRef theme_;
 };
@@ -379,7 +381,8 @@ lua::NResultsOr LuaTextLevelMaker::MapFromTextLevel(lua_State* L) {
     mapstr = TranslateTextLevel(ents, vars, &prng_, NoOp, &level_settings);
   } else {
     using namespace std::placeholders;
-    auto user_cb = std::bind(LuaCustomEntityCallback, L, -1, _1, _2, _3, _4, _5);
+    auto user_cb =
+        std::bind(LuaCustomEntityCallback, L, -1, _1, _2, _3, _4, _5);
     mapstr = TranslateTextLevel(ents, vars, &prng_, user_cb, &level_settings);
   }
 

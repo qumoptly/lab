@@ -15,6 +15,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ]]
 
+local log = require 'common.log'
 local helpers = require 'common.helpers'
 local timeout = require 'decorators.timeout'
 local debug_observations = require 'decorators.debug_observations'
@@ -26,12 +27,14 @@ local gadget_selection = require 'decorators.gadget_selection'
 local PARAMS_WHITELIST = {
     episodeLengthSeconds = true,
     invocationMode = true,
+    allowHoldOutLevels = true,
     levelGenerator = true,
     playerId = true,
     players = true,
     randomSeed = true,
     datasetPath = true,
     enableCameraMovement = true,
+    logLevel = true,
 }
 
 -- Some scripts still pass these in, though they are not used.
@@ -120,14 +123,17 @@ function setting_overrides.decorate(kwargs)
 
   -- Override the init() function to parse known settings.
   function api:init(params)
+    if params.logLevel then
+      log.setLogLevel(params.logLevel)
+    end
     -- Override known settings.
     for k, v in pairs(params) do
       local subTable, subKey = findLastSubTableAndSubKey(apiParams, k)
       if subTable[subKey] ~= nil then
         subTable[subKey] = helpers.fromString(v)
       elseif PARAMS_DEPRECATED[k] then
-        io.stderr:write('WARNING: "' .. k .. '" (here set to "' .. v .. '")' ..
-                        ' has been deprecated.\n')
+        log.warn('Setting ' .. k .. '" (here set to "' .. v .. '")' ..
+                  ' has been deprecated.\n')
       elseif not allowMissingSettings and not PARAMS_WHITELIST[k] then
         error('Invalid setting: "' .. k .. '" = "' .. v .. '"')
       end

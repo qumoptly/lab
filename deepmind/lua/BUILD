@@ -1,11 +1,11 @@
 # Description:
 #   A collection of libraries for interacting with Lua.
 
-licenses(["restricted"])  # GPLv2
-
 package(default_visibility = ["//visibility:public"])
 
-LUA_VERSION = "@lua_system//:lua"
+licenses(["restricted"])  # GPLv2
+
+LUA_VERSION = "@lua_archive//:lua"
 
 cc_library(
     name = "lua",
@@ -17,7 +17,10 @@ cc_library(
     name = "vm",
     srcs = ["vm.cc"],
     hdrs = ["vm.h"],
-    deps = [":lua"],
+    deps = [
+        ":lua",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
 )
 
 cc_library(
@@ -119,7 +122,7 @@ cc_library(
     hdrs = ["push.h"],
     deps = [
         ":lua",
-        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@com_google_absl//absl/types:variant",
@@ -133,7 +136,7 @@ cc_test(
     deps = [
         ":push",
         ":vm_test_util",
-        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",
@@ -148,6 +151,7 @@ cc_library(
         ":lua",
         ":n_results_or",
         ":read",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -156,7 +160,7 @@ cc_library(
     hdrs = ["read.h"],
     deps = [
         ":lua",
-        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@com_google_absl//absl/types:variant",
@@ -171,7 +175,7 @@ cc_test(
         ":push",
         ":read",
         ":vm_test_util",
-        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@com_google_absl//absl/types:variant",

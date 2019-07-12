@@ -73,11 +73,13 @@ local GOAL_ID = -1
 local PARAMS_WHITELIST = {
     episodeLengthSeconds = true,
     invocationMode = true,
+    allowHoldOutLevels = true,
     levelGenerator = true,
     playerId = true,
     players = true,
     randomSeed = true,
     datasetPath = true,
+    logLevel = true,
 }
 
 --[[ Creates a Keysdoors API.

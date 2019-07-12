@@ -23,7 +23,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/container/inlined_vector.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "absl/types/variant.h"
@@ -165,19 +165,6 @@ TEST_F(ReadTest, ReadArray) {
   EXPECT_EQ(result, test);
 }
 
-TEST_F(ReadTest, ReadInlinedVector) {
-  absl::InlinedVector<double, 5> test{{1, 2, 3, 4, 5}};
-  Push(L, "Junk");
-  Push(L, test);
-  Push(L, "Junk");
-  absl::InlinedVector<double, 5> result;
-  ASSERT_TRUE(IsFound(Read(L, 2, &result)));
-  EXPECT_EQ(result, test);
-  ASSERT_TRUE(IsFound(Read(L, -2, &result)));
-  EXPECT_EQ(result, test);
-  EXPECT_EQ(3, lua_gettop(L));
-}
-
 TEST_F(ReadTest, ReadArrayFloat) {
   std::array<float, 5> test{{1, 2, 3, 4, 5}};
   Push(L, "Junk");
@@ -211,7 +198,7 @@ TEST_F(ReadTest, ReadSpan) {
 }
 
 TEST_F(ReadTest, ReadTable) {
-  std::unordered_map<std::string, double> test = {
+  absl::flat_hash_map<std::string, double> test = {
       {"one", 1},  //
       {"2", 2.0},  //
       {"3", 3.0},  //
@@ -222,7 +209,7 @@ TEST_F(ReadTest, ReadTable) {
   Push(L, "Junk");
   Push(L, test);
   Push(L, "Junk");
-  std::unordered_map<std::string, double> result;
+  absl::flat_hash_map<std::string, double> result;
   ASSERT_TRUE(IsFound(Read(L, 2, &result)));
   EXPECT_EQ(result, test);
   ASSERT_TRUE(IsFound(Read(L, -2, &result)));
@@ -231,10 +218,10 @@ TEST_F(ReadTest, ReadTable) {
   EXPECT_TRUE(IsTypeMismatch(Read(L, 1, &result)));
   EXPECT_TRUE(IsNotFound(Read(L, 4, &result)));
 
-  std::unordered_map<std::string, std::string> result_missmatch_value;
+  absl::flat_hash_map<std::string, std::string> result_missmatch_value;
   EXPECT_TRUE(IsTypeMismatch(Read(L, 2, &result_missmatch_value)));
 
-  std::unordered_map<double, double> result_missmatch_key;
+  absl::flat_hash_map<double, double> result_missmatch_key;
   EXPECT_TRUE(IsTypeMismatch(Read(L, 2, &result_missmatch_value)));
 }
 
@@ -272,7 +259,7 @@ TEST_F(ReadTest, ReadVariantMissing) {
 
 TEST_F(ReadTest, ReadVariantVectorFail) {
   std::vector<absl::variant<bool, int>> vars;
-  std::array<const char*, 5> string_args = {"0", "1", "2", "3", "4"};
+  std::array<const char*, 5> string_args{{"0", "1", "2", "3", "4"}};
   Push(L, string_args);
   EXPECT_TRUE(IsTypeMismatch(lua::Read(L, 1, &vars)));
 }

@@ -22,6 +22,7 @@ from __future__ import print_function
 import argparse
 import random
 import numpy as np
+import six
 
 import deepmind_lab
 
@@ -47,7 +48,7 @@ class DiscretizedRandomAgent(object):
       'crouch': _action(0, 0, 0, 0, 0, 0, 1)
   }
 
-  ACTION_LIST = ACTIONS.values()
+  ACTION_LIST = list(six.viewvalues(ACTIONS))
 
   def step(self, unused_reward, unused_image):
     """Gets an image state and a reward, returns an action."""
@@ -136,7 +137,7 @@ class SpringAgent(object):
     self.action = np.zeros([len(self.action_spec)])
 
 
-def run(length, width, height, fps, level, record, demo, video):
+def run(length, width, height, fps, level, record, demo, demofiles, video):
   """Spins up an environment and runs the random agent."""
   config = {
       'fps': str(fps),
@@ -147,6 +148,8 @@ def run(length, width, height, fps, level, record, demo, video):
     config['record'] = record
   if demo:
     config['demo'] = demo
+  if demofiles:
+    config['demofiles'] = demofiles
   if video:
     config['video'] = video
   env = deepmind_lab.Lab(level, ['RGB_INTERLEAVED'], config=config)
@@ -159,7 +162,7 @@ def run(length, width, height, fps, level, record, demo, video):
 
   reward = 0
 
-  for _ in xrange(length):
+  for _ in six.moves.range(length):
     if not env.is_running():
       print('Environment stopped early')
       env.reset()
@@ -191,6 +194,8 @@ if __name__ == '__main__':
                       help='Record the run to a demo file')
   parser.add_argument('--demo', type=str, default=None,
                       help='Play back a recorded demo file')
+  parser.add_argument('--demofiles', type=str, default=None,
+                      help='Directory for demo files')
   parser.add_argument('--video', type=str, default=None,
                       help='Record the demo run as a video')
 
@@ -198,4 +203,4 @@ if __name__ == '__main__':
   if args.runfiles_path:
     deepmind_lab.set_runfiles_path(args.runfiles_path)
   run(args.length, args.width, args.height, args.fps, args.level_script,
-      args.record, args.demo, args.video)
+      args.record, args.demo, args.demofiles, args.video)

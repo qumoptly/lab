@@ -1,6 +1,6 @@
 /*
 ===========================================================================
-Copyright (C) 1999-2005 Id Software, Inc.
+Copyright (C) 1999-2005 Id Software, Inc., 2018 Google Inc.
 
 This file is part of Quake III Arena source code.
 
@@ -100,7 +100,7 @@ void S_Base_SoundInfo(void) {
 	} else {
 		Com_Printf("%5d stereo\n", dma.channels - 1);
 		Com_Printf("%5d samples\n", dma.samples);
-		Com_Printf("%5d samplebits\n", dma.samplebits);
+		Com_Printf("%5d samplebits (%s)\n", dma.samplebits, dma.isfloat ? "float" : "int");
 		Com_Printf("%5d submission_chunk\n", dma.submission_chunk);
 		Com_Printf("%5d speed\n", dma.speed);
 		Com_Printf("%p dma buffer\n", dma.buffer);
@@ -119,32 +119,31 @@ void S_Base_SoundInfo(void) {
 static
 void S_Base_StartCapture( void )
 {
-	// !!! FIXME: write me.
+	SNDDMA_StartCapture();
 }
 
 static
 int S_Base_AvailableCaptureSamples( void )
 {
-	// !!! FIXME: write me.
-	return 0;
+	return SNDDMA_AvailableCaptureSamples();
 }
 
 static
 void S_Base_Capture( int samples, byte *data )
 {
-	// !!! FIXME: write me.
+	SNDDMA_Capture(samples, data);
 }
 
 static
 void S_Base_StopCapture( void )
 {
-	// !!! FIXME: write me.
+	SNDDMA_StopCapture();
 }
 
 static
 void S_Base_MasterGain( float val )
 {
-	// !!! FIXME: write me.
+	SNDDMA_MasterGain(val);
 }
 #endif
 
@@ -769,7 +768,7 @@ Include velocity in case I get around to doing doppler...
 void S_Base_AddLoopingSound( int entityNum, const vec3_t origin, const vec3_t velocity, sfxHandle_t sfxHandle ) {
 	sfx_t *sfx;
 
-	if ( !s_soundStarted || s_soundMuted ) {
+	if ( !s_soundStarted || s_soundMuted || !sfxHandle ) {
 		return;
 	}
 
@@ -832,7 +831,7 @@ Include velocity in case I get around to doing doppler...
 void S_Base_AddRealLoopingSound( int entityNum, const vec3_t origin, const vec3_t velocity, sfxHandle_t sfxHandle ) {
 	sfx_t *sfx;
 
-	if ( !s_soundStarted || s_soundMuted ) {
+	if ( !s_soundStarted || s_soundMuted || !sfxHandle ) {
 		return;
 	}
 

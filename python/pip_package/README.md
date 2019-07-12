@@ -17,25 +17,37 @@ Here's the short version if you have already set up the dependencies.
 
 ```sh
 git clone https://github.com/deepmind/lab.git && cd lab
-bazel build python/pip_package:build_pip_package
+bazel build -c opt python/pip_package:build_pip_package
 ./bazel-bin/python/pip_package/build_pip_package /tmp/dmlab_pkg
 pip install /tmp/dmlab_pkg/DeepMind_Lab-1.0-py2-none-any.whl --force-reinstall
 ```
 
 #### Dependencies
 
-First, see
-[External dependencies, prerequisites and porting notes](https://github.com/deepmind/lab/blob/master/README.md)
+First, see [External dependencies, prerequisites and porting
+notes](../../README.md#external-dependencies-prerequisites-and-porting-notes)
 and install any requirements you might be missing. In addition to the
 requirements listed there, you may also need:
 
-- [pip](https://pip.pypa.io/en/stable/installing/)
-- [NumPy](https://docs.scipy.org/doc/numpy/user/install.html)
+- [pip](https://pip.pypa.io/en/stable/installing/), wheel and setuptools
 - [virtualenv](https://virtualenv.pypa.io/en/stable/installation/) (optional)
 
-If you prefer, NumPy can be installed as part of the **install** step below so
-it is added to the virtualenv for your project. Instructions are provided below
-for doing so.
+If you use virtualenv, you may need to install NumPy again in the hermetic
+environment (using pip). Instructions for doing so are provided below. Do beware
+that the NumPy version should be compatible with and at least as new as the one
+used to build the Python module itself. If necessary, change the `WORKSPACE` and
+`python.BUILD` files to use the NumPy version from your PIP package. See the
+[build documentation](../../docs/users/build.md#lua-and-python-dependencies) for
+details.
+
+#### Python3
+
+If you would like to use Python3 rather than Python2, then you may need to
+install `python3-*` variants of the dependencies, as well as `pip3`. You will
+probably want to invoke Bazel with `--python_path=/usr/bin/python3` and
+virtualenv with `virtualenv --python=python3`. You may also want to set the
+Python binary path, e.g. via `export PYTHON_BIN_PATH="/usr/bin/python3"` (unless
+you are already in a hermetic Python3 virtualenv environment).
 
 #### Build assets/binaries
 
@@ -53,7 +65,7 @@ the `lab` directory and run the Bazel command to build the pip package script:
 
 ```sh
 $ cd lab
-$ bazel build python/pip_package:build_pip_package
+$ bazel build -c opt python/pip_package:build_pip_package
 ```
 
 If the build command fails, make sure you've grabbed the latest version and
@@ -92,13 +104,18 @@ $ cd ~/my_agent
 $ virtualenv agentenv
 ```
 
+You can also use `virtualenv --system-site-package agentenv` to allow the
+environment to use your system-wide Python packages (e.g. NumPy), in which
+case you do not need to install NumPy again below.
+
 Once you've created your virtualenv, you can activate it using:
 
 ```sh
 $ source agentenv/bin/activate
 ```
 
-Once your virtualenv is activated, install any remaining dependencies:
+Once your virtualenv is activated, install any remaining dependencies (if you
+have not used `--system-site-package` above):
 
 ```sh
 (agentenv)$ pip install numpy
@@ -169,4 +186,4 @@ will need to run this command once for each.
 
 You can use the same API for the standalone Python module as you do when
 building with the Bazel project. See:
-[DeepMind Lab environment documentation: Python](https://github.com/deepmind/lab/blob/master/docs/python_api.md).
+[DeepMind Lab environment documentation: Python](../../docs/users/python_api.md).

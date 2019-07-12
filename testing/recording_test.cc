@@ -20,9 +20,9 @@
 
 #include <cstdlib>
 #include <string>
-#include <unordered_map>
 
 #include "gtest/gtest.h"
+#include "absl/container/flat_hash_map.h"
 #include "deepmind/support/test_srcdir.h"
 #include "deepmind/util/files.h"
 #include "public/dmlab.h"
@@ -36,7 +36,7 @@ namespace {
 using ::testing::UnitTest;
 
 // A map used to simplify passing settings to dmlab before initialization.
-using SettingsMap = std::unordered_map<std::string, std::string>;
+using SettingsMap = absl::flat_hash_map<std::string, std::string>;
 
 const int kFramesPerSecond = 30;
 
@@ -119,7 +119,7 @@ TEST_F(RecordingTest, SavesRecordingToDemoDirectory) {
 
   EnvCApi env_c_api;
   void* context;
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   SettingsMap settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";
@@ -156,7 +156,7 @@ TEST_F(RecordingTest, PlaysDemoFromDemoDirectory) {
 
   EnvCApi env_c_api;
   void* context;
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   SettingsMap settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";
@@ -176,7 +176,7 @@ TEST_F(RecordingTest, PlaysDemoFromDemoDirectory) {
   env_c_api.release_context(context);
 
   // Start the context for the demo
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";
@@ -220,7 +220,7 @@ TEST_F(RecordingTest, RecordsMultipleVideos) {
 
   EnvCApi env_c_api;
   void* context;
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   SettingsMap settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";
@@ -237,7 +237,7 @@ TEST_F(RecordingTest, RecordsMultipleVideos) {
   env_c_api.release_context(context);
 
   // Start the context for the demo
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";
@@ -274,7 +274,7 @@ TEST_F(RecordingTest, TotalScorePreserved) {
 
   EnvCApi env_c_api;
   void* context;
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   SettingsMap settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";
@@ -297,7 +297,7 @@ TEST_F(RecordingTest, TotalScorePreserved) {
   env_c_api.release_context(context);
 
   // Start the context for the demo
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";
@@ -331,7 +331,7 @@ TEST_F(RecordingTest, MissingDemoFilesSetsError) {
   void* context;
 
   // Start the context for the demo
-  dmlab_connect(&params, &env_c_api, &context);
+  ASSERT_EQ(dmlab_connect(&params, &env_c_api, &context), 0);
 
   SettingsMap settings = DefaultSettings();
   settings["levelName"] = "tests/recording_test";

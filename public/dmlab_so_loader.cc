@@ -20,14 +20,20 @@
 // Requires the macro DMLAB_SO_LOCATION to be defined as the path to the
 // shared object file.
 
+#include "absl/container/flat_hash_map.h"
 #include "public/dmlab.h"
 
 #include <dlfcn.h>
 #include <fcntl.h>
-#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#ifdef __APPLE__
+#  include <copyfile.h>
+#else  // defined(__APPLE__)
+#  include <sys/sendfile.h>
+#endif  // defined(__APPLE__)
 
 #include <cerrno>
 #include <cstdio>
@@ -36,7 +42,6 @@
 #include <iostream>
 #include <mutex>
 #include <string>
-#include <unordered_map>
 
 #ifdef LEAK_SANITIZER
 #include <sanitizer/lsan_interface.h>
@@ -51,8 +56,8 @@ struct InternalContext {
   void* dlhandle;
 };
 
-std::unordered_map<void*, InternalContext>* context_map() {
-  static std::unordered_map<void*, InternalContext> internal_context;
+absl::flat_hash_map<void*, InternalContext>* context_map() {
+  static absl::flat_hash_map<void*, InternalContext> internal_context;
   return &internal_context;
 }
 
@@ -103,20 +108,44 @@ void close_handle(void* context) {
   }
 }
 
-ssize_t send_complete_file(int out_fd, int in_fd, off_t offset, ssize_t count) {
-  ssize_t bytes;
-  ssize_t bytes_count = 0;
-  do {
-    bytes = sendfile(out_fd, in_fd, &offset, count - bytes_count);
-    if (bytes <= 0) {
+// Copies the input file to the output file, where both files are given by open
+// file descriptors. Returns 0 on success and a negative value on error. In the
+// error case, the return value comes from an underlying library call, and errno
+// may be set accordingly.
+ssize_t copy_complete_file(int in_fd, int out_fd) {
+#ifdef __APPLE__
+  return fcopyfile(in_fd, out_fd, nullptr, COPYFILE_ALL);
+#else  // defined(__APPLE__)
+  off_t offset = 0;
+  struct stat stat_in;
+
+  if (fstat(in_fd, &stat_in) == -1) {
+    std::cerr << "Failed to read source filesize\n";
+    return -1;
+  }
+
+  for (ssize_t count = stat_in.st_size, bytes_read = 0; bytes_read < count;) {
+    ssize_t res = sendfile(out_fd, in_fd, &offset, count - bytes_read);
+    if (res < 0) {
+      // An error occurred.
       if (errno == EINTR || errno == EAGAIN) {
+        // e.g. intervening interrupt, just keep trying
         continue;
+      } else {
+        // unrecoverable error
+        return res;
       }
-      return bytes;
+    } else if (res == 0) {
+      // The file was shorter than fstat originally reported, but that's OK.
+      return 0;
+    } else {
+      // No error, res bytes were read.
+      bytes_read += res;
     }
-    bytes_count += bytes;
-  } while (bytes_count < count);
-  return bytes_count;
+  }
+
+  return 0;
+#endif  // defined(__APPLE__)
 }
 
 }  // namespace
@@ -144,7 +173,7 @@ int dmlab_connect(const DeepMindLabLaunchParams* params, EnvCApi* env_c_api,
         return 1;
     }
   } else {
-    std::cerr << "Require runfiles_diectory!\n";
+    std::cerr << "Require runfiles_directory!\n";
     return 1;
   }
 
@@ -168,21 +197,9 @@ int dmlab_connect(const DeepMindLabLaunchParams* params, EnvCApi* env_c_api,
       return 1;
     }
 
-    struct stat stat_source;
-
-    if (fstat(source, &stat_source) == -1) {
-      close(source);
-      close(dest);
-      std::remove(temp_path.c_str());
-      std::cerr << "Failed to read library size: \"" << so_path << "\"\n"
-                << errno << " - " << std::strerror(errno) << "\n";
-      return 1;
-    }
-
-    if (send_complete_file(dest, source, 0, stat_source.st_size) == -1) {
+    if (copy_complete_file(source, dest) < 0) {
       std::cerr << "Failed to copy file to destination \"" << temp_path
-                << "\"\n"
-                << errno << " - " << std::strerror(errno) << "\n";
+                << "\"\n" << errno << " - " << std::strerror(errno) << "\n";
       close(source);
       close(dest);
       std::remove(temp_path.c_str());

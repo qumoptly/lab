@@ -38,6 +38,17 @@
 #include "../renderercommon/tr_common.h"
 #include "../sys/sys_local.h"
 
+#define GLE(ret, name, ...) extern name##proc * qgl##name;
+QGL_1_1_PROCS;
+QGL_1_1_FIXED_FUNCTION_PROCS;
+QGL_DESKTOP_1_1_PROCS;
+QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+QGL_1_3_PROCS;
+QGL_1_5_PROCS;
+QGL_2_0_PROCS;
+QGL_3_0_PROCS;
+#undef GLE
+
 static const double kPixelsPerFrameToDegreesPerMilliseconds = 0.11 * 60 / 1000;
 
 // We define a notion of "external time" for convenience and to avoid rounding
@@ -737,7 +748,7 @@ static int dmlab_init(void* context) {
 }
 
 static void connect_client(GameContext* gc) {
-  Cmd_ExecuteString(va("connect -6 [::]:%d\n", gc->server_port));
+  Cmd_ExecuteString(va("connect -6 [::1]:%d\n", gc->server_port));
   Cvar_Set("fixedtime", va("%d", gc->engine_frame_period_msec));
   Com_Frame();
   gc->is_connecting = true;
@@ -1249,8 +1260,8 @@ static void dmlab_destroy_context(void* context) {
   free(gc->temp_buffer);
   free(gc->image_buffer);
   free(gc);
-  DMLabUnloadIOQ3Module();
   GLimp_Shutdown();
+  DMLabUnloadIOQ3Module();
 }
 
 static void call_add_score(int player_id, double score) {

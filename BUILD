@@ -653,7 +653,7 @@ MAPS = glob(["assets/maps/src/*.map"])
 genrule(
     name = "map_assets",
     srcs = MAPS,
-    outs = ["baselab/" + f[12:-3] + "pk3" for f in MAPS],
+    outs = ["baselab/" + f[16:-3] + "pk3" for f in MAPS],
     cmd = "cp -t $(@D)/baselab $(SRCS); " +
           "for s in $(SRCS); do " +
           "  BM=$$(basename $${s}); M=$${BM/.map/}; " +
@@ -686,8 +686,9 @@ genrule(
           "  A=$$(dirname $$s); " +
           "  B=$${A/assets/}; " +
           "  mkdir -p $(@D)/baselab$${B}; " +
-          "  ln -s -L -t $(@D)/baselab$${B} $$(realpath $${s}); " +
+          "  ln -s -L -t $(@D)/baselab$${B} $$($(location //deepmind/support:realpath) $${s}); " +
           "done",
+    tools = ["//deepmind/support:realpath"],
     visibility = ["//visibility:public"],
 )
 
@@ -703,8 +704,9 @@ genrule(
     cmd = "for s in $(SRCS); do " +
           "  A=$$(dirname $$s); " +
           "  mkdir -p $(@D)/baselab/$${A}; " +
-          "  ln -s -L -t $(@D)/baselab/$${A} $$(realpath $${s}); " +
+          "  ln -s -L -t $(@D)/baselab/$${A} $$($(location //deepmind/support:realpath) $${s}); " +
           "done",
+    tools = ["//deepmind/support:realpath"],
     visibility = ["//visibility:public"],
 )
 
@@ -719,8 +721,9 @@ genrule(
     outs = ["baselab/maps" + f[len("assets/maps/built"):] for f in BUILT_MAPS],
     cmd = "for s in $(SRCS); do " +
           "  mkdir -p $(@D)/baselab/maps; " +
-          "  ln -s -L -t $(@D)/baselab/maps $$(realpath $${s}); " +
+          "  ln -s -L -t $(@D)/baselab/maps $$($(location //deepmind/support:realpath) $${s}); " +
           "done",
+    tools = ["//deepmind/support:realpath"],
     visibility = ["//visibility:public"],
 )
 
@@ -894,10 +897,7 @@ config_setting(
 
 cc_binary(
     name = "libdmlab_headless_hw.so",
-    linkopts = [
-        "-Wl,--version-script",
-        ":dmlab.lds",
-    ],
+    linkopts = ["-Wl,--version-script,$(location :dmlab.lds)"],
     linkshared = 1,
     linkstatic = 1,
     visibility = ["//testing:__subpackages__"],
@@ -910,10 +910,7 @@ cc_binary(
 
 cc_binary(
     name = "libdmlab_headless_sw.so",
-    linkopts = [
-        "-Wl,--version-script",
-        ":dmlab.lds",
-    ],
+    linkopts = ["-Wl,--version-script,$(location :dmlab.lds)"],
     linkshared = 1,
     linkstatic = 1,
     visibility = ["//testing:__subpackages__"],
@@ -937,6 +934,7 @@ cc_library(
         ":file_reader_types",
         ":level_cache_types",
         "//third_party/rl_api:env_c_api",
+        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
 
@@ -981,9 +979,16 @@ cc_binary(
 py_binary(
     name = "python_random_agent",
     srcs = ["python/random_agent.py"],
-    data = [":deepmind_lab.so"],
     main = "python/random_agent.py",
+    deps = [":python_random_agent_lib"],
+)
+
+py_library(
+    name = "python_random_agent_lib",
+    srcs = ["python/random_agent.py"],
+    data = [":deepmind_lab.so"],
     visibility = ["//python/tests:__subpackages__"],
+    deps = ["@six_archive//:six"],
 )
 
 LOAD_TEST_SCRIPTS = [

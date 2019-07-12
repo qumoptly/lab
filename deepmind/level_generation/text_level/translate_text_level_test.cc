@@ -26,10 +26,11 @@
 #include "deepmind/support/logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/flags/flag.h"
 #include "deepmind/level_generation/text_level/text_level_settings.h"
 #include "deepmind/support/test_srcdir.h"
 
-DEFINE_FLAG(
+ABSL_FLAG(
     string, map_outfile, "",
     "If this argument is provided, write the .map output of the test map to "
     "the specified file. Useful for testing other parts of the pipeline.");
@@ -37,6 +38,9 @@ DEFINE_FLAG(
 namespace deepmind {
 namespace lab {
 namespace {
+
+using ::testing::AnyOf;
+using ::testing::Eq;
 
 constexpr char kEntities[] =
     "   ******\n"
@@ -74,7 +78,7 @@ TEST(TranslateTextLevel, Simple) {
   ASSERT_THAT(actual, testing::HasSubstr("\"classname\" \"trigger_multiple\""));
 
   if (base::SpecifiedOnCommandLine("map_outfile")) {
-    std::string filename = base::GetFlag(FLAGS_map_outfile);
+    std::string filename = absl::GetFlag(FLAGS_map_outfile);
     if (std::ofstream(filename) << actual) {
       LOG(INFO) << "Test map written to '" << filename << "'.";
     } else {
@@ -93,14 +97,22 @@ TEST(TranslateTextLevel, CompareWithGolden) {
   std::string actual = TranslateTextLevel(kEntities, kVariations, &rng, NoOp,
                                           &settings);
 
-  std::ifstream golden(
+  std::ifstream golden_libcxx(
       TestSrcDir() +
       "/deepmind/level_generation/text_level/"
-      "translate_text_level_test.golden_output");
-  QCHECK(golden) << "Failed to open golden data file.";
+      "translate_text_level_test_libc++.golden_output");
 
-  std::string expected(std::istreambuf_iterator<char>(golden), {});
-  EXPECT_EQ(expected, actual);
+  QCHECK(golden_libcxx) << "Failed to open golden libc data file.";
+  std::ifstream golden_libstdcxx(
+      TestSrcDir() +
+      "/deepmind/level_generation/text_level/"
+      "translate_text_level_test_libstdc++.golden_output");
+  QCHECK(golden_libstdcxx) << "Failed to open golden libstdc data file.";
+
+  std::string expected_libc(std::istreambuf_iterator<char>(golden_libcxx), {});
+  std::string expected_libstdc(std::istreambuf_iterator<char>(golden_libstdcxx),
+                                                              {});
+  EXPECT_THAT(actual, AnyOf(Eq(expected_libc), Eq(expected_libstdc)));
 }
 
 TEST(TranslateTextLevel, Custom) {

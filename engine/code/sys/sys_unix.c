@@ -1,6 +1,6 @@
 /*
 ===========================================================================
-Copyright (C) 1999-2005 Id Software, Inc., 2016-2017 Google Inc.
+Copyright (C) 1999-2005 Id Software, Inc., 2016-2018 Google Inc.
 
 This file is part of Quake III Arena source code.
 
@@ -591,155 +591,6 @@ void Sys_ErrorDialog( const char *error )
 	close( f );
 }
 
-#ifndef __APPLE__
-static char execBuffer[ 1024 ];
-static char *execBufferPointer;
-static char *execArgv[ 16 ];
-static int execArgc;
-
-/*
-==============
-Sys_ClearExecBuffer
-==============
-*/
-static void Sys_ClearExecBuffer( void )
-{
-	execBufferPointer = execBuffer;
-	Com_Memset( execArgv, 0, sizeof( execArgv ) );
-	execArgc = 0;
-}
-
-/*
-==============
-Sys_AppendToExecBuffer
-==============
-*/
-static void Sys_AppendToExecBuffer( const char *text )
-{
-	size_t size = sizeof( execBuffer ) - ( execBufferPointer - execBuffer );
-	int length = strlen( text ) + 1;
-
-	if( length > size || execArgc >= ARRAY_LEN( execArgv ) )
-		return;
-
-	Q_strncpyz( execBufferPointer, text, size );
-	execArgv[ execArgc++ ] = execBufferPointer;
-
-	execBufferPointer += length;
-}
-
-/*
-==============
-Sys_Exec
-==============
-*/
-static int Sys_Exec( void )
-{
-	pid_t pid = fork( );
-
-	if( pid < 0 )
-		return -1;
-
-	if( pid )
-	{
-		// Parent
-		int exitCode;
-
-		wait( &exitCode );
-
-		return WEXITSTATUS( exitCode );
-	}
-	else
-	{
-		// Child
-		execvp( execArgv[ 0 ], execArgv );
-
-		// Failed to execute
-		exit( -1 );
-
-		return -1;
-	}
-}
-
-/*
-==============
-Sys_ZenityCommand
-==============
-*/
-static void Sys_ZenityCommand( dialogType_t type, const char *message, const char *title )
-{
-	Sys_ClearExecBuffer( );
-	Sys_AppendToExecBuffer( "zenity" );
-
-	switch( type )
-	{
-		default:
-		case DT_INFO:      Sys_AppendToExecBuffer( "--info" ); break;
-		case DT_WARNING:   Sys_AppendToExecBuffer( "--warning" ); break;
-		case DT_ERROR:     Sys_AppendToExecBuffer( "--error" ); break;
-		case DT_YES_NO:
-			Sys_AppendToExecBuffer( "--question" );
-			Sys_AppendToExecBuffer( "--ok-label=Yes" );
-			Sys_AppendToExecBuffer( "--cancel-label=No" );
-			break;
-
-		case DT_OK_CANCEL:
-			Sys_AppendToExecBuffer( "--question" );
-			Sys_AppendToExecBuffer( "--ok-label=OK" );
-			Sys_AppendToExecBuffer( "--cancel-label=Cancel" );
-			break;
-	}
-
-	Sys_AppendToExecBuffer( va( "--text=%s", message ) );
-	Sys_AppendToExecBuffer( va( "--title=%s", title ) );
-}
-
-/*
-==============
-Sys_KdialogCommand
-==============
-*/
-static void Sys_KdialogCommand( dialogType_t type, const char *message, const char *title )
-{
-	Sys_ClearExecBuffer( );
-	Sys_AppendToExecBuffer( "kdialog" );
-
-	switch( type )
-	{
-		default:
-		case DT_INFO:      Sys_AppendToExecBuffer( "--msgbox" ); break;
-		case DT_WARNING:   Sys_AppendToExecBuffer( "--sorry" ); break;
-		case DT_ERROR:     Sys_AppendToExecBuffer( "--error" ); break;
-		case DT_YES_NO:    Sys_AppendToExecBuffer( "--warningyesno" ); break;
-		case DT_OK_CANCEL: Sys_AppendToExecBuffer( "--warningcontinuecancel" ); break;
-	}
-
-	Sys_AppendToExecBuffer( message );
-	Sys_AppendToExecBuffer( va( "--title=%s", title ) );
-}
-
-/*
-==============
-Sys_XmessageCommand
-==============
-*/
-static void Sys_XmessageCommand( dialogType_t type, const char *message, const char *title )
-{
-	Sys_ClearExecBuffer( );
-	Sys_AppendToExecBuffer( "xmessage" );
-	Sys_AppendToExecBuffer( "-buttons" );
-
-	switch( type )
-	{
-		default:           Sys_AppendToExecBuffer( "OK:0" ); break;
-		case DT_YES_NO:    Sys_AppendToExecBuffer( "Yes:0,No:1" ); break;
-		case DT_OK_CANCEL: Sys_AppendToExecBuffer( "OK:0,Cancel:1" ); break;
-	}
-
-	Sys_AppendToExecBuffer( "-center" );
-	Sys_AppendToExecBuffer( message );
-}
-
 /*
 ==============
 Sys_Dialog
@@ -751,7 +602,6 @@ dialogResult_t Sys_Dialog( dialogType_t type, const char *message, const char *t
 	Sys_Print( message );
 	return type == DT_YES_NO ? DR_NO : DR_OK;
 }
-#endif
 
 /*
 ==============
@@ -861,6 +711,14 @@ qboolean Sys_DllExtension( const char *name ) {
 	if ( COM_CompareExtension( name, DLL_EXT ) ) {
 		return qtrue;
 	}
+
+#ifdef __APPLE__
+	// Allow system frameworks without dylib extensions
+	// i.e., /System/Library/Frameworks/OpenAL.framework/OpenAL
+	if ( strncmp( name, "/System/Library/Frameworks/", 27 ) == 0 ) {
+		return qtrue;
+	}
+#endif
 
 	// Check for format of filename.so.1.2.3
 	p = strstr( name, DLL_EXT "." );

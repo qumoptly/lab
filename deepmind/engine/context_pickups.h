@@ -20,9 +20,9 @@
 #define DML_DEEPMIND_ENGINE_CONTEXT_PICKUPS_H_
 
 #include <string>
-#include <unordered_map>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "deepmind/include/deepmind_calls.h"
 #include "deepmind/lua/n_results_or.h"
 #include "deepmind/lua/table_ref.h"
@@ -33,7 +33,7 @@ namespace lab {
 class ContextPickups {
  public:
   // Parameters for a custom pickup item.
-  using EntityInstance = std::unordered_map<std::string, std::string>;
+  using EntityInstance = absl::flat_hash_map<std::string, std::string>;
 
   void SetScriptTableRef(lua::TableRef script_table_ref) {
     script_table_ref_ = std::move(script_table_ref);
@@ -108,13 +108,13 @@ class ContextPickups {
 
   // Returns whether we can pickup the specified entity id. By default this
   // returns true.
-  bool CanPickup(int entity_id);
+  bool CanPickup(int entity_id, int player_id);
 
   // Customization point for overriding the entity's pickup behaviour. Also
   // allows for modifying the default respawn time for the entity.
   // Returns true if the pickup behaviour has been overridden by the user,
   // otherwise calls the default pickup behaviour based on the item type.
-  bool OverridePickup(int entity_id, int* respawn);
+  bool OverridePickup(int entity_id, int* respawn, int player_id);
 
   // Adds spawn_entity to list of entities to be spawned next frame.
   void SpawnDynamicEntity(EntityInstance spawn_entity);

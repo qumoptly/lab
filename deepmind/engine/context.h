@@ -26,9 +26,9 @@
 #include <memory>
 #include <random>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "deepmind/engine/context_actions.h"
 #include "deepmind/engine/context_entities.h"
 #include "deepmind/engine/context_events.h"
@@ -68,8 +68,7 @@ class Context {
       const char* executable_runfiles,
       const DeepmindCalls* calls,
       DeepmindHooks* hooks,
-      bool (*file_reader_override)(const char* file_name, char** buff,
-                                   std::size_t* size),
+      DeepmindFileReaderType* file_reader_override,
       const DeepMindReadOnlyFileSystem* read_only_file_system,
       const char* temp_folder);
 
@@ -83,7 +82,7 @@ class Context {
   void SetLevelName(std::string level_name);
 
   // 'level_directory': Sets the directory to find level scripts in. If a local
-  // path is used it will be relative to the 'games_cripts' directory. (Default
+  // path is used it will be relative to the 'game_scripts' directory. (Default
   // is 'levels'.)
   void SetLevelDirectory(std::string level_directory);
 
@@ -185,17 +184,18 @@ class Context {
 
   // Returns whether the specified entity id can trigger. By default this
   // returns true.
-  bool CanTrigger(int entity_id, const char* target_name);
+  bool CanTrigger(int entity_id, const char* target_name, int player_id);
 
   // Customization point for overriding the entity's trigger behaviour.
   // Returns whether the trigger behaviour has been overridden by the user.
   // If the trigger behaviour is not overridden, calls the default trigger
   // behaviour based on the item type.
-  bool OverrideTrigger(int entity_id, const char* target_name);
+  bool OverrideTrigger(int entity_id, const char* target_name, int player_id);
 
   // Customization point for triggering a callback in response to a trigger
   // lookat.
-  void TriggerLookat(int entity_id, bool looked_at, const float position[3]);
+  void TriggerLookat(int entity_id, bool looked_at, const float position[3],
+                     int player_id);
 
   // Customization point for overriding the value of a reward.
   //
@@ -470,7 +470,7 @@ class Context {
   std::string executable_runfiles_;
 
   // The settings to run the script with.
-  std::unordered_map<std::string, std::string> settings_;
+  absl::flat_hash_map<std::string, std::string> settings_;
 
   // When a levelName is set without the suffix '.lua' the level is found
   // relative to this directory.
@@ -481,9 +481,6 @@ class Context {
 
   // The result of the script that was run when Init was first called.
   lua::TableRef script_table_ref_;
-
-  // Calls into the engine.
-  const DeepmindCalls* deepmind_calls_;
 
   // Cached command-line to enable returning a pointer to its contents.
   std::string command_line_;
@@ -527,9 +524,6 @@ class Context {
 
   // Callbacks for fetching/writing levels to cache.
   DeepMindLabLevelCacheParams level_cache_params_;
-
-  // Readonly filesystem overridable via DeepMindLabLaunchParams.
-  DeepMindReadOnlyFileSystem readonly_filesystem_;
 
   // Last error message.
   std::string error_message_;

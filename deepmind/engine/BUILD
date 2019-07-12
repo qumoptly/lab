@@ -43,6 +43,7 @@ cc_library(
         "//deepmind/tensor:lua_tensor",
         "//deepmind/tensor:tensor_view",
         "//third_party/rl_api:env_c_api",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -56,9 +57,11 @@ cc_library(
         "//deepmind/lua:class",
         "//deepmind/lua:n_results_or",
         "//deepmind/lua:read",
+        "//deepmind/support:logging",
         "//deepmind/tensor:lua_tensor",
         "//deepmind/tensor:tensor_view",
         "//third_party/rl_api:env_c_api",
+        "@com_google_absl//absl/container:node_hash_map",
     ],
 )
 
@@ -165,6 +168,7 @@ cc_library(
         "//deepmind/lua:read",
         "//deepmind/lua:table_ref",
         "//deepmind/support:logging",
+        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
 
@@ -246,10 +250,7 @@ cc_library(
     name = "lua_random",
     srcs = ["lua_random.cc"],
     hdrs = ["lua_random.h"],
-    visibility = [
-        "//deepmind/include:__pkg__",
-        "//deepmind/tensor:__pkg__",
-    ],
+    visibility = ["//deepmind/tensor:__pkg__"],
     deps = [
         "//deepmind/lua",
         "//deepmind/lua:class",
@@ -292,6 +293,7 @@ cc_library(
         "//deepmind/lua:read",
         "//deepmind/lua:table_ref",
         "//deepmind/util:files",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
     ],
 )
