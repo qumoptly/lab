@@ -69,6 +69,8 @@ static const double kEngineTimePerExternalTime = 0.96;
 
 static const int kMaxLookAngularVelocity = 512;  // Pixels per frame.
 
+static const char* const kReservedEnginePropertyList = "engine";
+
 enum ActionsEnum {
   kActions_LookLeftRight,
   kActions_LookDownUp,
@@ -887,6 +889,15 @@ static const char* dmlab_action_continuous_name(
   return NULL;
 }
 
+static int dmlab_action_text_count(void* context) {
+  return 0;
+}
+
+static const char* dmlab_action_text_name(
+    void* context, int continuous_idx) {
+  return NULL;
+}
+
 static void dmlab_action_continuous_bounds(
     void* context,
     int continuous_idx, double* min_value_out, double* max_value_out) {}
@@ -1119,7 +1130,7 @@ static void dmlab_event(void* context, int event_idx, EnvCApi_Event* event) {
   return ctx->hooks.events.export_event(ctx->userdata, event_idx, event);
 }
 
-static void dmlab_act(void* context, const int act_d[], const double act_c[]) {
+static void dmlab_act_discrete(void* context, const int act_d[]) {
   GameContext* gc = context;
   gc->is_connecting = false;
   if (gc->is_server) return;
@@ -1137,6 +1148,14 @@ static void dmlab_act(void* context, const int act_d[], const double act_c[]) {
                          upmove, buttons);
   ctx->hooks.custom_action_discrete_apply(ctx->userdata,
                                           act_d + ARRAY_LEN(kActionNames));
+}
+
+static void dmlab_act_continuous(void* context, const double act_c[]) {}
+static void dmlab_act_text(void* context, const EnvCApi_TextAction act_c[]) {}
+
+static void dmlab_act(void* context, const int act_d[], const double act_c[]) {
+  dmlab_act_discrete(context, act_d);
+  dmlab_act_continuous(context, act_c);
 }
 
 static double get_engine_score(void) {
@@ -1262,6 +1281,79 @@ static void dmlab_destroy_context(void* context) {
   free(gc);
   GLimp_Shutdown();
   DMLabUnloadIOQ3Module();
+}
+
+EnvCApi_PropertyResult dmlab_write_property(void* context, const char* key,
+                                            const char* value) {
+  if (strncmp(key, kReservedEnginePropertyList,
+              strlen(kReservedEnginePropertyList)) == 0) {
+    const char* sub_key = key + strlen(kReservedEnginePropertyList);
+    if (sub_key[0] == '.') {
+      ++sub_key;
+      if (strcmp(sub_key, "fps") == 0) {
+        return EnvCApi_PropertyResult_PermissionDenied;
+      } else {
+        return EnvCApi_PropertyResult_NotFound;
+      }
+    } else if (sub_key[0] == '\0') {
+      return EnvCApi_PropertyResult_PermissionDenied;
+    }
+  }
+  DeepmindContext* ctx = dmlab_context();
+  return ctx->hooks.properties.write(ctx->userdata, key, value);
+}
+
+EnvCApi_PropertyResult dmlab_read_property(void* context, const char* key,
+                                           const char** value) {
+  if (strncmp(key, kReservedEnginePropertyList,
+              strlen(kReservedEnginePropertyList)) == 0) {
+    const char* sub_key = key + strlen(kReservedEnginePropertyList);
+    if (sub_key[0] == '.') {
+      ++sub_key;
+      if (strcmp(sub_key, "fps") == 0) {
+        *value = va("%d", dmlab_fps(context));
+        return EnvCApi_PropertyResult_Success;
+      }
+      return EnvCApi_PropertyResult_NotFound;
+    } else if (sub_key[0] == '\0') {
+      return EnvCApi_PropertyResult_PermissionDenied;
+    }
+  }
+  DeepmindContext* ctx = dmlab_context();
+  return ctx->hooks.properties.read(ctx->userdata, key, value);
+}
+
+EnvCApi_PropertyResult dmlab_list_property(
+    void* context, void* userdata, const char* key,
+    void (*prop_callback)(void* userdata, const char* key,
+                          EnvCApi_PropertyAttributes flags)) {
+  if (strncmp(key, kReservedEnginePropertyList,
+              strlen(kReservedEnginePropertyList)) == 0) {
+    const char* sub_key = key + strlen(kReservedEnginePropertyList);
+    if (sub_key[0] == '\0') {
+      prop_callback(userdata, va("%s.%s", kReservedEnginePropertyList, "fps"),
+                    EnvCApi_PropertyAttributes_Readable);
+      return EnvCApi_PropertyResult_Success;
+    } else if (sub_key[0] == '.') {
+      ++sub_key;
+      if (strcmp(sub_key, "fps") == 0) {
+        return EnvCApi_PropertyResult_PermissionDenied;
+      } else {
+        return EnvCApi_PropertyResult_NotFound;
+      }
+    }
+  }
+
+  DeepmindContext* ctx = dmlab_context();
+  EnvCApi_PropertyResult result =
+      ctx->hooks.properties.list(ctx->userdata, userdata, key, prop_callback);
+  if (key[0] == '\0') {
+    // Advertise engine property list if empty key.
+    prop_callback(userdata, kReservedEnginePropertyList,
+                  EnvCApi_PropertyAttributes_Listable);
+    result = EnvCApi_PropertyResult_Success;
+  }
+  return result;
 }
 
 static void call_add_score(int player_id, double score) {
@@ -1396,6 +1488,9 @@ int dmlab_connect(const DeepMindLabLaunchParams* params, EnvCApi* env_c_api,
 
   env_c_api->setting = dmlab_setting;
   env_c_api->init = dmlab_init;
+  env_c_api->write_property = dmlab_write_property;
+  env_c_api->read_property = dmlab_read_property;
+  env_c_api->list_property = dmlab_list_property;
   env_c_api->start = dmlab_start;
   env_c_api->error_message = dmlab_error_message;
   env_c_api->environment_name = dmlab_environment_name;
@@ -1405,6 +1500,8 @@ int dmlab_connect(const DeepMindLabLaunchParams* params, EnvCApi* env_c_api,
   env_c_api->action_continuous_count = dmlab_action_continuous_count;
   env_c_api->action_continuous_name = dmlab_action_continuous_name;
   env_c_api->action_continuous_bounds = dmlab_action_continuous_bounds;
+  env_c_api->action_text_count = dmlab_action_text_count;
+  env_c_api->action_text_name = dmlab_action_text_name;
   env_c_api->observation_count = dmlab_observation_count;
   env_c_api->observation_name = dmlab_observation_name;
   env_c_api->observation_spec = dmlab_observation_spec;
@@ -1415,9 +1512,11 @@ int dmlab_connect(const DeepMindLabLaunchParams* params, EnvCApi* env_c_api,
   env_c_api->event_count = dmlab_event_count;
   env_c_api->event = dmlab_event;
   env_c_api->act = dmlab_act;
+  env_c_api->act_discrete = dmlab_act_discrete;
+  env_c_api->act_continuous = dmlab_act_continuous;
+  env_c_api->act_text = dmlab_act_text;
   env_c_api->advance = dmlab_advance;
   env_c_api->release_context = dmlab_destroy_context;
-
   gc->dm_ctx->calls.player_score = player_score;
   gc->dm_ctx->calls.add_score = call_add_score;
   gc->dm_ctx->calls.screen_shape = screen_shape;

@@ -42,8 +42,16 @@ class DeepMindLabTest(unittest.TestCase):
   def testReset(self):
     lab = deepmind_lab.Lab('tests/empty_room_test', [], {})
     with six.assertRaisesRegex(self, ValueError,
-                                 '\'seed\' must be int or None, was \'str\''):
+                               '\'seed\' must be int or None, was \'str\''):
       lab.reset(seed='invalid')
+
+  def testTempFolder(self):
+    temp_folder = os.path.join(os.environ['TEST_TMPDIR'], 'test_temp_folder')
+    lab = deepmind_lab.Lab(
+        'contributed/dmlab30/explore_goal_locations_small', [], {},
+        temp_folder=temp_folder)
+    lab.reset()
+    self.assertGreaterEqual(len(os.listdir(temp_folder)), 1)
 
   def testSpecs(self):
     lab = deepmind_lab.Lab('tests/empty_room_test', [])
@@ -193,7 +201,7 @@ class DeepMindLabTest(unittest.TestCase):
     look_sideways_action = np.array([512, 0, 0, 0, 0, 0, 0], dtype=np.intc)
 
     env = deepmind_lab.Lab(
-        'seekavoid_arena_01', ['VEL.TRANS', 'VEL.ROT'],
+        'seekavoid_arena_01', ['VEL.TRANS', 'VEL.ROT', 'RGBD_INTERLEAVED'],
         config={'height': str(height), 'width': str(width), 'fps': '60'})
 
     env.reset(seed=1)

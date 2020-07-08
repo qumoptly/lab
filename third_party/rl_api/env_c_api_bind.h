@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc.
+// Copyright 2016-2019 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,6 +93,9 @@ void Bind(std::unique_ptr<T> env, EnvCApi* api, void** context) {
   api->init = DEEPMIND_RL_API_BIND(Init);
   api->start = DEEPMIND_RL_API_BIND(Start);
   api->error_message = DEEPMIND_RL_API_BIND(ErrorMessage);
+  api->read_property = DEEPMIND_RL_API_BIND(ReadProperty);
+  api->write_property = DEEPMIND_RL_API_BIND(WriteProperty);
+  api->list_property = DEEPMIND_RL_API_BIND(ListProperty);
   api->environment_name = DEEPMIND_RL_API_BIND(EnvironmentName);
   api->action_discrete_count = DEEPMIND_RL_API_BIND(ActionDiscreteCount);
   api->action_discrete_name = DEEPMIND_RL_API_BIND(ActionDiscreteName);
@@ -100,6 +103,8 @@ void Bind(std::unique_ptr<T> env, EnvCApi* api, void** context) {
   api->action_continuous_count = DEEPMIND_RL_API_BIND(ActionContinuousCount);
   api->action_continuous_name = DEEPMIND_RL_API_BIND(ActionContinuousName);
   api->action_continuous_bounds = DEEPMIND_RL_API_BIND(ActionContinuousBounds);
+  api->action_text_count = DEEPMIND_RL_API_BIND(ActionTextCount);
+  api->action_text_name = DEEPMIND_RL_API_BIND(ActionTextName);
   api->observation_count = DEEPMIND_RL_API_BIND(ObservationCount);
   api->observation_name = DEEPMIND_RL_API_BIND(ObservationName);
   api->observation_spec = DEEPMIND_RL_API_BIND(ObservationSpec);
@@ -110,6 +115,9 @@ void Bind(std::unique_ptr<T> env, EnvCApi* api, void** context) {
   api->event_count = DEEPMIND_RL_API_BIND(EventCount);
   api->event = DEEPMIND_RL_API_BIND(Event);
   api->act = DEEPMIND_RL_API_BIND(Act);
+  api->act_discrete = DEEPMIND_RL_API_BIND(ActDiscrete);
+  api->act_continuous = DEEPMIND_RL_API_BIND(ActContinuous);
+  api->act_text = DEEPMIND_RL_API_BIND(ActText);
   api->advance = DEEPMIND_RL_API_BIND(Advance);
   api->release_context = [](void* context) { delete static_cast<T*>(context); };
 }

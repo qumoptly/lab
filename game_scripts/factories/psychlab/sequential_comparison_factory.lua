@@ -51,6 +51,8 @@ local GRID = {size = 64, step = 8}
 local STUDY_TIME = 90 -- 120 -- in frames  (ignored in self paced mode)
 local DELAY_TIMES = {8, 16, 32, 64, 128, 256} -- in frames
 
+local SELF_PACED = true
+
 local ADVANCE_TRIAL_REWARD = 0
 local CORRECT_REWARD = 1
 local INCORRECT_REWARD = 0
@@ -95,6 +97,11 @@ function factory.createLevelApi(kwargs)
   kwargs.buttonSize = kwargs.buttonSize or BUTTON_SIZE
   kwargs.endStudyButtonSize = kwargs.endStudyButtonSize or END_STUDY_BUTTON_SIZE
   kwargs.colors = kwargs.colors or COLORS
+
+  -- Handling for boolean in order to override default value of true.
+  if kwargs.selfPaced == nil then
+    kwargs.selfPaced = SELF_PACED
+  end
 
   -- Types of objects to display
   local ALL_OPTO_TYPES = {'E', 'Square'}
@@ -243,7 +250,6 @@ function factory.createLevelApi(kwargs)
     end
     self.allowTranslation = opts.allowTranslation or false
     self.domains = DOMAINS
-    self.selfPaced = opts.selfPaced == nil or opts.selfPaced
 
     -- setup images and grid parameters
     self:setupImages()
@@ -296,7 +302,7 @@ function factory.createLevelApi(kwargs)
     self._hFactor = self.targetPixels.width / kwargs.grid.size
     self._vFactor = self.targetPixels.height / kwargs.grid.size
 
-    if self.selfPaced then
+    if kwargs.selfPaced then
       local endStudyGridLocs = {
           {
               self._gridLimit / 2 - 2 * self._gridStep - self._gridStep,
@@ -777,7 +783,7 @@ function factory.createLevelApi(kwargs)
                            self:renderArray(self.currentTrial.studyArrayData),
                            kwargs.targetSize)
 
-    if not self.selfPaced then
+    if not kwargs.selfPaced then
       self.pac:addTimer{
           name = 'study_timer',
           timeout = kwargs.studyTime,
@@ -798,7 +804,7 @@ function factory.createLevelApi(kwargs)
 
     self.currentTrial.delayTime, _ = psychlab_helpers.randomFrom(
       kwargs.delayTimes)
-    if self.selfPaced then
+    if kwargs.selfPaced then
       self.pac:removeWidget('endStudyPhaseButton')
     end
     self.pac:removeWidget('target')

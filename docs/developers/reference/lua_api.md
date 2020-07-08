@@ -427,7 +427,7 @@ There is a helper table used to interact with the `loadOut`:
 If the function is defined `loadOut` must be returned, which can be modified
 with `inventory.View`. See [Inventory View](#inventory_view)
 
-```Lua
+```lua
 local inventory = require 'common.inventory'
 
 function api:spawnInventory(loadOut)
@@ -472,7 +472,7 @@ Valid Gadgets:
 
 Valid amount are in range `[0, 999)` or `inventory.UNLIMITED`
 
-```Lua
+```lua
 -- Returns/sets list of gadgets.
 function View:gadgets()
 function View:setGadgets(gadgets)
@@ -523,6 +523,31 @@ Called once per frame. `actions` is a lua table containing six keys:
 controller. The script has an opportunity to modify the actions and return it to
 override the actions to be applied. If nothing or nil is returned, the method
 makes no effect.
+
+### `writeProperty`(*key*, *value*)
+
+Callback to support `RlCApi`'s `write_property`.
+Return `true` if `property[key]` is assigned `value`. Return `false` if
+`property[key]` cannot hold `value` and return `nil` if `property[key]` does
+not exist.
+
+### `readProperty`(*key*)
+
+Callback to support `RlCApi`'s `read_property`.
+Return value of `property[key]` if it exists otherwise return `nil`.
+
+### `listProperty`(*key*, *callback*)
+
+Callback to support `RlCApi`'s `list_property`.
+Return true if `property[key]` is a list and call `callback(key, type)` for
+each sub-property of `property[key]` where key is the full length key to the
+sub-property and type a string containing any combination of 'r', 'w' and 'l'.
+
+If the type contains:
+
+*   'l'  - Listable and `listProperty(key)` maybe called.
+*   'r'  - Readable and `readProperty(key)` maybe called.
+*   'w'  - Writable and `writeProperty(key, value)` maybe called.
 
 ### `registerDynamicItems`() -> table
 
@@ -718,7 +743,7 @@ storage.
 
 ### `renderCustomView`(kwargs) &rarr; ByteTensor\[height x width x 3\]
 
-```Lua
+```lua
 {
     width = width,    -- Required, sets width of tensor returned.
     height = height,  -- Required, sets height of tensor returned.
@@ -787,7 +812,7 @@ entities that match one of the classnames provided are returned.
 
 Each entity in the list returned in a table:
 
-```Lua
+```lua
 entity = {
   entityId = 0,             -- Internal id.
   id = 0,                   -- Id provided via spawnVars.
@@ -801,7 +826,7 @@ entity = {
 
 Example usage:
 
-```Lua
+```lua
 local game_entities = require 'dmlab.system.game_entities'
 
 
@@ -826,7 +851,7 @@ observation may be one of string, ByteTensor or DoubleTensor.
 
 Example script:
 
-```Lua
+```lua
 local events = require 'dmlab.system.events'
 local tensor = require 'dmlab.system.tensor'
 
@@ -846,7 +871,7 @@ table containing the key 'classname'. They should match internal Quake III Arena
 
 Example:
 
-```Lua
+```lua
 local pickups_spawn = require 'dmlab.system.pickups_spawn'
 
 local function _respondToEvent()

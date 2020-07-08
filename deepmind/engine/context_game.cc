@@ -446,6 +446,11 @@ void ContextGame::SetPlayerState(const float pos[3], const float vel[3],
                                  int team_score, int other_team_score,
                                  int player_id, bool teleporter_flip,
                                  int timestamp_msec) {
+  if (player_view_.timestamp_msec > 0 &&
+      timestamp_msec == player_view_.timestamp_msec) {
+    // Player state has already been set.
+    return;
+  }
   PlayerView before = player_view_;
   std::copy_n(pos, 3, player_view_.pos.data());
   std::copy_n(vel, 3, player_view_.vel.data());
@@ -467,9 +472,8 @@ void ContextGame::SetPlayerState(const float pos[3], const float vel[3],
   if (before.timestamp_msec > 0 && delta_time_msec > 0) {
     double dt = delta_time_msec * (1.0 / 1000.0);
     double inv_delta_time = 1.0 / dt;
-    Eigen::Vector3d vel =
-        (player_view_.eyePos - before.eyePos) * inv_delta_time;
-    velocity_smoother_.set_target(vel);
+    velocity_smoother_.set_target(
+        (player_view_.eyePos - before.eyePos) * inv_delta_time);
     velocity_smoother_.Update(dt);
 
     for (int i : {0, 1, 2}) {

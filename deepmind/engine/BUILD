@@ -192,6 +192,7 @@ cc_library(
         "//deepmind/model_generation:lua_model",
         "//deepmind/tensor:lua_tensor",
     ],
+    alwayslink = 1,  # provides symbols for a shared C and C++ header
 )
 
 cc_test(
@@ -201,7 +202,6 @@ cc_test(
     deps = [
         ":callbacks",
         "//deepmind/include:context_hdrs",
-        "//deepmind/support:logging",
         "//deepmind/support:test_srcdir",
         "@com_google_googletest//:gtest_main",
     ],
@@ -257,6 +257,7 @@ cc_library(
         "//deepmind/lua:n_results_or",
         "//deepmind/lua:push",
         "//deepmind/lua:read",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -306,10 +307,12 @@ cc_library(
         "//:file_reader_types",
         "//deepmind/lua",
         "//deepmind/lua:bind",
+        "//deepmind/lua:n_results_or",
         "//deepmind/lua:push",
         "//deepmind/lua:read",
         "//deepmind/lua:table_ref",
         "//deepmind/tensor:lua_tensor",
+        "//deepmind/tensor:tensor_view",
         "//deepmind/util:file_reader",
         "@com_google_absl//absl/strings",
         "@png_archive//:png",

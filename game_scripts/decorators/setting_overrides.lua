@@ -15,11 +15,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ]]
 
+local game = require 'dmlab.system.game'
 local log = require 'common.log'
 local helpers = require 'common.helpers'
 local timeout = require 'decorators.timeout'
 local debug_observations = require 'decorators.debug_observations'
 local gadget_selection = require 'decorators.gadget_selection'
+local property_decorator = require 'decorators.property_decorator'
 
 -- These parameters may or may not be specified in the init `params`, depending
 -- on the execution environment. We should ignore them without raising an
@@ -151,6 +153,14 @@ function setting_overrides.decorate(kwargs)
     end
 
     gadget_selection(api, apiParams)
+    property_decorator.decorate(api)
+
+    property_decorator.addReadWrite('params', apiParams)
+    property_decorator.addReadOnly('console',
+      function(command)
+        game:console(command)
+        return property_decorator.RESULT.SUCCESS
+      end)
 
     -- Call version of `init` that existed before decoration.
     if apiInit then

@@ -19,22 +19,27 @@
 #include "deepmind/engine/lua_image.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <iterator>
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "deepmind/lua/bind.h"
+#include "deepmind/lua/n_results_or.h"
 #include "deepmind/lua/push.h"
 #include "deepmind/lua/read.h"
 #include "deepmind/lua/table_ref.h"
 #include "deepmind/tensor/lua_tensor.h"
+#include "deepmind/tensor/tensor_view.h"
 #include "deepmind/util/file_reader.h"
 #include "public/file_reader_types.h"
 #include "png.h"
@@ -299,16 +304,15 @@ Iter2 averagingMinify(         //
       acc[c] = low_wgt * source[k + c];
     }
     for (std::size_t j = low_idx_i + 1; j < top_idx_i; j++) {
-      std::size_t k = j * num_channels;
       for (std::size_t c = 0; c < num_channels; ++c) {
-        acc[c] += source[k + c];
+        acc[c] += source[j * num_channels + c];
       }
     }
     if (top_idx_f > top_idx_i) {
-      double top_wgt = top_idx_f - top_idx_i;
-      std::size_t k = std::min(top_idx_i, source_len - 1) * num_channels;
       for (std::size_t c = 0; c < num_channels; ++c) {
-        acc[c] += top_wgt * source[k + c];
+        acc[c] +=
+            (top_idx_f - top_idx_i) *
+            source[std::min(top_idx_i, source_len - 1) * num_channels + c];
       }
     }
     for (std::size_t c = 0; c < num_channels; ++c) {

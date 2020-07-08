@@ -1,4 +1,4 @@
-// Copyright 2016-2017 Google Inc.
+// Copyright 2016-2019 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -30,6 +31,9 @@ const char* const kDiscreteActionNames[] = {"PADX", "PADY"};
 
 const int kContinuousActionCount = 1;
 const char* const kContinuousActionNames[] = {"TRIGGER"};
+
+const int kTextActionCount = 1;
+const char* const kTextActionNames[] = {"LANGUAGE"};
 
 const struct {
   int min_value;
@@ -62,8 +66,19 @@ const EnvCApi_ObservationSpec kObservationSpecs[] = {
 class MyGame {
  public:
   int Setting(const char* key, const char* value) {
-    // Doesn't accept any settings.
-    return 1;
+    std::string key_string = key;
+    std::string value_string = value;
+    int attributes = EnvCApi_PropertyAttributes_ReadWritable;
+    if (key_string.find("readonly") != std::string::npos) {
+      attributes = EnvCApi_PropertyAttributes_Readable;
+    } else if (key_string.find("writeonly") != std::string::npos) {
+      attributes = EnvCApi_PropertyAttributes_Writable;
+    }
+
+    properties_[key_string] = {
+        std::move(value_string),
+        static_cast<EnvCApi_PropertyAttributes>(attributes)};
+    return 0;
   }
 
   int Init() { return 0; }
@@ -119,6 +134,15 @@ class MyGame {
     *max_value_out = kContinuousActionBounds[continuous_idx].max_value;
   }
 
+  // The number of text actions.
+  int ActionTextCount() const { return kTextActionCount; }
+
+  // Text action name. 'discrete_idx' < action_text_count().
+  const char* ActionTextName(int discrete_idx) const {
+    assert(discrete_idx < kTextActionCount);
+    return kTextActionNames[discrete_idx];
+  }
+
   int ObservationCount() const { return kObservationCount; }
   const char* ObservationName(int observation_idx) {
     assert(observation_idx < kObservationCount);
@@ -158,7 +182,14 @@ class MyGame {
 
   void Event(int event_idx, EnvCApi_Event* event) {}
 
-  void Act(const int actions_discrete[], const double actions_continuous[]) {}
+  void Act(const int actions_discrete[], const double actions_continuous[]) {
+    ActDiscrete(actions_discrete);
+    ActContinuous(actions_continuous);
+  }
+
+  void ActDiscrete(const int actions_discrete[]) {}
+  void ActContinuous(const double actions_continuous[]) {}
+  void ActText(const EnvCApi_TextAction actions_continuous[]) {}
 
   EnvCApi_EnvironmentStatus Advance(int num_steps, double* reward) {
     steps_ += num_steps;
@@ -168,7 +199,63 @@ class MyGame {
     return EnvCApi_EnvironmentStatus_Running;
   }
 
+  EnvCApi_PropertyResult WriteProperty(const char* key, const char* value) {
+    auto it = properties_.find(key);
+    if (it != properties_.end()) {
+      auto& prop = it->second;
+      if ((prop.attributes & EnvCApi_PropertyAttributes_Writable) ==
+          EnvCApi_PropertyAttributes_Writable) {
+        prop.value = value;
+        return EnvCApi_PropertyResult_Success;
+      } else {
+        return EnvCApi_PropertyResult_PermissionDenied;
+      }
+    } else {
+      return EnvCApi_PropertyResult_NotFound;
+    }
+  }
+
+  EnvCApi_PropertyResult ReadProperty(const char* key, const char** value) {
+    if (key[0] == '\0') return EnvCApi_PropertyResult_PermissionDenied;
+    auto it = properties_.find(key);
+    if (it != properties_.end()) {
+      const auto& prop = it->second;
+      if ((prop.attributes & EnvCApi_PropertyAttributes_Readable) ==
+          EnvCApi_PropertyAttributes_Readable) {
+        *value = prop.value.c_str();
+        return EnvCApi_PropertyResult_Success;
+      } else {
+        return EnvCApi_PropertyResult_PermissionDenied;
+      }
+    } else {
+      return EnvCApi_PropertyResult_NotFound;
+    }
+  }
+
+  EnvCApi_PropertyResult ListProperty(
+      void* userdata, const char* list_key,
+      void (*list_callback)(void* userdata, const char* key,
+                            EnvCApi_PropertyAttributes attributes)) {
+    if (list_key[0] == '\0') {
+      for (const auto& key_value : properties_) {
+        const auto& key = key_value.first;
+        const auto& prop = key_value.second;
+        list_callback(userdata, key.c_str(), prop.attributes);
+      }
+      return EnvCApi_PropertyResult_Success;
+    } else {
+      return properties_.find(list_key) != properties_.end()
+                 ? EnvCApi_PropertyResult_PermissionDenied
+                 : EnvCApi_PropertyResult_NotFound;
+    }
+  }
+
  private:
+  struct PropertyValue {
+    std::string value;
+    EnvCApi_PropertyAttributes attributes;
+  };
+  std::map<std::string, PropertyValue> properties_;
   int episode_id_;
   int seed_;
   int steps_;

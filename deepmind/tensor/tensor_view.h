@@ -1,4 +1,4 @@
-// Copyright (C) 2016 Google Inc.
+// Copyright (C) 2016-2019 Google Inc.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -338,7 +338,7 @@ class Layout {
 
   // Streams out shaped data using printer for each offset.
   void PrintToStream(
-      std::ostream* os,
+      std::size_t max_num_elements, std::ostream* os,
       std::function<void(std::ostream* os, std::size_t offset)> printer) const;
 
  private:
@@ -449,6 +449,19 @@ class TensorView : public Layout {
         rhs, [&op, lhs_storage, rhs_storage](std::size_t lhs_offset,
                                              std::size_t rhs_offset) {
           op(&lhs_storage[lhs_offset], rhs_storage[rhs_offset]);
+        });
+  }
+
+  // If '*this' matches the number of elements in 'rhs', 'op' is applied to the
+  // elements of '*this' and 'rhs' and returns true, otherwise returns false.
+  template <typename U, typename F>
+  bool ComponentOp(const TensorView<U>& rhs, F&& op) const {
+    const T* lhs_storage = storage();
+    const U* rhs_storage = rhs.storage();
+    return PairwiseForEachOffset(
+        rhs, [&op, lhs_storage, rhs_storage](std::size_t lhs_offset,
+                                             std::size_t rhs_offset) {
+          op(lhs_storage[lhs_offset], rhs_storage[rhs_offset]);
         });
   }
 
@@ -587,6 +600,43 @@ class TensorView : public Layout {
     ForEachMutable([](T* val) { *val = std::round(*val); });
   }
 
+  // Calculates the sum of all elements using an accumulator of type R.
+  template <typename R = T>
+  R Sum() const {
+    R acc = 0;
+    ForEach([&acc](R val) { acc += val; });
+    return acc;
+  }
+
+  // Calculates the product of all elements using an accumulator of type R.
+  template <typename R = T>
+  R Product() const {
+    R acc = 1;
+    ForEach([&acc](R val) { acc *= val; });
+    return acc;
+  }
+
+  // Calculates the sum of all the squares of each element using an accumulator
+  // of type R.
+  template <typename R = T>
+  R LengthSquared() const {
+    R acc = 0;
+    ForEach([&acc](R val) { acc += val * val; });
+    return acc;
+  }
+
+  // Calculates the sum of all the element-wise products of this tensor and
+  // 'rhs', using '*acc' as the accumulator (which holds the result). Returns
+  // true if the operation succeeded, and false otherwise (which happens when
+  // the tensors have different sizes).
+  template <typename U, typename R = T>
+  bool DotProduct(const TensorView<U>& rhs, R* acc) const {
+    *acc = 0;
+    return ComponentOp(rhs, [acc](R v_lhs, R v_rhs) {
+      *acc += v_lhs * v_rhs;
+    });
+  }
+
   // Shuffles a rank-1 tensor.
   // If the tensor is rank-1, it shuffles its elements using the provided random
   // bit generator and returns true, otherwise it returns false.
@@ -656,12 +706,18 @@ class TensorView : public Layout {
 
   // Enable streaming of Tensor View.
   friend std::ostream& operator<<(std::ostream& os, const TensorView& view) {
-    const T* storage = view.storage();
-    view.PrintToStream(&os, [storage](std::ostream* os, std::size_t offset) {
-      // The '+' expression promotes the value to make char's print as integers.
-      (*os) << +storage[offset];
-    });
+    view.PrintToStream(/*max_num_elements=*/1024, &os);
     return os;
+  }
+
+  void PrintToStream(std::size_t max_num_elements, std::ostream* os) const {
+    const T* data = storage();
+    Layout::PrintToStream(max_num_elements, os,
+                          [data](std::ostream* os, std::size_t offset) {
+                            // The '+' expression promotes the value to make
+                            // char's print as integers.
+                            (*os) << +data[offset];
+                          });
   }
 
   const T* storage() const { return storage_; }

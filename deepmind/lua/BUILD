@@ -41,6 +41,7 @@ cc_test(
     data = ["vm_test_module.lua"],
     deps = [
         ":call",
+        ":n_results_or",
         ":n_results_or_test_util",
         ":push_script",
         ":read",
@@ -220,6 +221,7 @@ cc_library(
         ":push",
         ":read",
         "//deepmind/support:logging",
+        "@com_google_absl//absl/strings",
     ],
 )
 

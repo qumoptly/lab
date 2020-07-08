@@ -2,11 +2,92 @@
 
 ## Next Release
 
+### New Levels:
+
+1.  Psychlab.
+
+    1. contributed/psychlab/memory_suite_01/explore_goal_locations_extrapolate
+    2. contributed/psychlab/memory_suite_01/explore_goal_locations_holdout_extrapolate
+    3. contributed/psychlab/memory_suite_01/explore_goal_locations_holdout_interpolate
+    4. contributed/psychlab/memory_suite_01/explore_goal_locations_holdout_large
+    5. contributed/psychlab/memory_suite_01/explore_goal_locations_holdout_small
+    6. contributed/psychlab/memory_suite_01/explore_goal_locations_interpolate
+    7. contributed/psychlab/memory_suite_01/explore_goal_locations_train_large
+    8. contributed/psychlab/memory_suite_01/explore_goal_locations_train_small
+
+### New Features:
+
+1.  A property system has been added that allows dynamic querying and modifying
+    of environment state. Level scripts can register and consume custom
+    properties.
+2.  A new Python module, `dmenv_module`, is provided that exposes the DeepMind
+    [`dm_env` API](https://github.com/deepmind/dm_env).
+
+### Minor Improvements:
+
+1.  Quake console commands can now be issued via a write-only property.
+2.  New numeric "accumulate" operations for TensorView and the Lua Tensor types:
+    sum, product, sum-of-squares, and dot product of two tensors.
+
+### EnvCApi Changes:
+
+1.  "Properties" have been added to the EnvCApi. Properties may be queried, set,
+    and enumerated.
+2.  The new API version is 1.4 (up from 1.3).
+3.  The EnvCApi function `fps` is now deprecated; environments should instead
+    use the new property system to communicate this information.
+
+### Bug Fixes:
+
+1.  Fix observation 'VEL.ROT' to allow non-zero values when combined with pixel
+    observations. Previously, the presence of pixel observations caused the
+    angular velocity information to be lost due to a logic error.
+
+## release-2019-10-07 October 2019 release
+
+### New Levels:
+
+1.  Psychlab.
+
+     1. contributed/psychlab/cued_temporal_production
+     2. contributed/psychlab/memory_suite_01/arbitrary_visuomotor_mapping_train
+     3. contributed/psychlab/memory_suite_01/arbitrary_visuomotor_mapping_holdout_interpolate
+     4. contributed/psychlab/memory_suite_01/arbitrary_visuomotor_mapping_holdout_extrapolate
+     5. contributed/psychlab/memory_suite_01/change_detection_train
+     6. contributed/psychlab/memory_suite_01/change_detection_holdout_interpolate
+     7. contributed/psychlab/memory_suite_01/change_detection_holdout_extrapolate
+     8. contributed/psychlab/memory_suite_01/continuous_recognition_train
+     9. contributed/psychlab/memory_suite_01/continuous_recognition_holdout_interpolate
+    10. contributed/psychlab/memory_suite_01/continuous_recognition_holdout_extrapolate
+    11. contributed/psychlab/memory_suite_01/what_then_where_train
+    12. contributed/psychlab/memory_suite_01/what_then_where_holdout_interpolate
+    13. contributed/psychlab/ready_set_go
+    14. contributed/psychlab/temporal_bisection
+    15. contributed/psychlab/temporal_discrimination
+    16. contributed/psychlab/visuospatial_suite/memory_guided_saccade
+    17. contributed/psychlab/visuospatial_suite/odd_one_out
+    18. contributed/psychlab/visuospatial_suite/pathfinder
+    19. contributed/psychlab/visuospatial_suite/pursuit
+    20. contributed/psychlab/visuospatial_suite/visual_match
+    21. contributed/psychlab/visuospatial_suite/visually_guided_antisaccade
+    22. contributed/psychlab/visuospatial_suite/visually_guided_prosaccade
+
 ### Minor Improvements:
 
 1.  The `game` demo executable can now print observations at each step.
 
-### Bug Fixes
+### EnvCApi Changes:
+
+1.  The meaning of major and minor versions and the resulting notions of
+    stability are clarified. The new API version is 1.3 (up from 1.2).
+2.  The EnvCApi `act` function is now deprecated in favour of two finer-grained
+    functions: A call to `act` should be replaced by a call `act_discrete` to
+    set discrete actions, followed by an optional call to `act_continuous` to
+    set continuous actions. (DeepMind Lab does not use continuous actions.)
+3.  New support for "text actions", which can be set with the new `act_text` API
+    function. (DeepMind Lab does not use text actions.)
+
+### Bug Fixes:
 
 1.  Observation 'DEBUG.CAMERA_INTERLEAVED.TOP_DOWN' is now correct for levels
     `dmlab30/explore_object_rewards_{few,many}`.
@@ -18,6 +99,11 @@
     The affected levels have been updated and will generate layouts similar to
     before, but the whole maze is offset by 100 units, and object placements
     will change.
+2.  Fix top-down camera for language levels.
+3.  Correct typo in bot `Leonis`, skill level 1, based on OpenArena's bot code
+    `gargoyle_c.c`.
+4.  Tensor scalar operations using arrays now work similar to the way they do
+    with single values.
 
 ## release-2019-02-04 February 2019 release
 
@@ -33,8 +119,8 @@
     Python, NumPy).
 2.  Add 'allowHoldOutLevels' setting to allow running of levels that should not
     be trained on, but held out for evaluation.
-3.  Add logging library 'common.log', which provides the ability to control which
-    log messages are emitted via the setting 'logLevel'.
+3.  Add logging library 'common.log', which provides the ability to control
+    which log messages are emitted via the setting 'logLevel'.
 4.  Update the ioq3 upstream code to the [latest
     state](https://github.com/ioquake/ioq3/tree/29db64070aa0bae49953bddbedbed5e317af48ba).
 5.  Lua 5.1 is now downloaded and built from source, and is thus no longer a

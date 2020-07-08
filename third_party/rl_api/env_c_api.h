@@ -1,4 +1,4 @@
-// Copyright 2016-2017 Google Inc.
+// Copyright 2016-2019 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,10 +52,43 @@
 #ifndef DEEPMIND_ENV_C_API_H_
 #define DEEPMIND_ENV_C_API_H_
 
+// The version MAJ.MIN relates to compatibility as follows. Assuming an
+// environment that implements the API and a client that calls into the API,
+// if both components are built separately, then the following restrictions
+// apply:
+//
+// * There is no ABI compatibility: both environment and client need to be
+//   compiled at the exact same version MAJ.MIN (e.g. even minor version
+//   changes can reorder or add struct members).
+//
+// * There is no API stability for environments: an environment written
+//   against API version MAJ1.MIN1 needs to be migrated when upgrading to
+//   greater API version MAJ2.MIN2 (e.g. to provide new functions; there
+//   are no "optional" functions).
+//
+// * There is API stability for clients within the minor version: A client
+//   written for version MAJ.MIN1 can be recompiled without modification
+//   against an upgraded API of version MAJ.MIN2, MIN2 >= MIN1, within the
+//   same major version. However, when changing major versions, migration
+//   may be required.
+//
+// In other words, evolution within one major version can add new features
+// and deprecate existing features (and provide replacements), but cannot
+// remove or change the meaning of an existing feature. Ideally, if a feature
+// is changed incompatibly in a major version change, the previous version
+// should provide a migration path so that clients and the API can be upgraded
+// separately and incrementally.
+//
+// Environments that implement this API should check whether versions
+// match, e.g. by making the user pass DEEPMIND_ENV_C_API_VERSION_MAJOR
+// and DEEPMIND_ENV_C_API_VERSION_MINOR through the initial creation
+// function call.
+//
 #define DEEPMIND_ENV_C_API_VERSION_MAJOR 1
-#define DEEPMIND_ENV_C_API_VERSION_MINOR 2
+#define DEEPMIND_ENV_C_API_VERSION_MINOR 4
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,6 +108,9 @@ typedef struct EnvCApi_Observation_s EnvCApi_Observation;
 // observations. (These observations are unrelated to the environment
 // observations.)
 typedef struct EnvCApi_Event_s EnvCApi_Event;
+
+// A text action. Contains a string and its length.
+typedef struct EnvCApi_TextAction_s EnvCApi_TextAction;
 
 // The status of an environment. This status changes as the environment evolves.
 // The meaning of the status values is as follows, but see also the "Run loop"
@@ -129,6 +165,47 @@ struct EnvCApi_Event_s {
   int observation_count;
   const EnvCApi_Observation* observations;
 };
+
+// A text action consists of a string and its length.
+struct EnvCApi_TextAction_s {
+  const char* data;
+  uint64_t len;
+};
+
+// A property is a key-value pair of strings that represent a current
+// environment's configuration. Some properties are editable and may take
+// effect immediately or during the next call to advance() or start().
+//
+// Each property has attributes that describes what operations are available for
+// a given property.
+//
+// * Readable:     Property can be read via a call to 'read_property'.
+// * Writable:     Property can be set via a call to 'write_property'.
+// * ReadWritable: Convenience flag to describe (Readable | Writable).
+// * Listable:     Property has sub-properties and can be retrieved via a
+//                 call to 'for_each_property_in_list'.
+enum EnvCApi_PropertyAttributes_enum {
+  EnvCApi_PropertyAttributes_Readable = 1 << 0,
+  EnvCApi_PropertyAttributes_Writable = 1 << 1,
+  EnvCApi_PropertyAttributes_ReadWritable =
+      EnvCApi_PropertyAttributes_Readable | EnvCApi_PropertyAttributes_Writable,
+  EnvCApi_PropertyAttributes_Listable = 1 << 2,
+};
+typedef enum EnvCApi_PropertyAttributes_enum EnvCApi_PropertyAttributes;
+
+// Result of property operations.
+//
+// * Success:          Operation was a success.
+// * NotFound:         Property does not exist.
+// * PermissionDenied: Operation not allowed on property.
+// * InvalidArgument:  Property could not accept value provided.
+enum EnvCApi_PropertyResult_enum {
+  EnvCApi_PropertyResult_Success = 0,
+  EnvCApi_PropertyResult_NotFound = 1,
+  EnvCApi_PropertyResult_PermissionDenied = 2,
+  EnvCApi_PropertyResult_InvalidArgument = 3,
+};
+typedef enum EnvCApi_PropertyResult_enum EnvCApi_PropertyResult;
 
 ///////////////
 //  The API  //
@@ -191,12 +268,64 @@ struct EnvCApi_s {
   // 'start' or 'advance'.
   const char* (*error_message)(void* context);
 
-  // Meta data querying
+  // Meta data querying/setting
   /////////////////////
   //
   // Functions in this section shall only be called after a successful call of
   // 'init', but beyond that they may be called at any time, regardless of
   // whether 'start' has been called or whether the episode has terminated.
+
+  // Writes 'value' to property `key`.
+  // If the function returns:
+  //
+  // *   Success: property's value was updated. The value may not updated be
+  //     immediately and there is no round-trip guarantee so subsequent calls to
+  //     read may not produce the same value that was set.
+  //
+  // *   InvalidArgument: property's value was not updated. This could be caused
+  //     by 'value' not being in the acceptable range of values for the
+  //     property.
+  //
+  // *   PermissionDenied: property is not writable.
+  //
+  // *   NotFound: property does not exist.
+  //
+  // No other return values are valid.
+  EnvCApi_PropertyResult (*write_property)(void* context, const char* key,
+                                           const char* value);
+
+  // Reads the value of property 'key'.
+  // If the function returns:
+  //
+  // *   Success: '*value' is set to the property's value. The pointer to value
+  //     will only be valid until the next call to the API.
+  //
+  // *   PermissionDenied: property is not readable. '*value' is left unchanged.
+  //
+  // *   NotFound: property does not exist. '*value' is left unchanged.
+  //
+  // No other return values are valid.
+  EnvCApi_PropertyResult (*read_property)(void* context, const char* key,
+                                          const char** value);
+
+  // List sub-properties of property 'list_key'.
+  // If the function returns:
+  //
+  // *   Success: 'prop_callback' will be called for each sub-property.
+  //     `userdata` will be passed through to the callback. No other calls to
+  //     the API are allowed during the callback. Callback order is unspecified
+  //     and may change at any time. The string 'key' is only valid for the
+  //     duration of the callback.
+  //
+  // *   PermissionDenied: property is not listable.
+  //
+  // *   NotFound: property does not exist.
+  //
+  // No other return values are valid.
+  EnvCApi_PropertyResult (*list_property)(
+      void* context, void* userdata, const char* list_key,
+      void (*prop_callback)(void* userdata, const char* key,
+                            EnvCApi_PropertyAttributes attributes));
 
   // Name of the environment.
   const char* (*environment_name)(void* context);
@@ -207,12 +336,17 @@ struct EnvCApi_s {
   // The number of continuous actions.
   int (*action_continuous_count)(void* context);
 
+  // The number of text actions.
+  int (*action_text_count)(void* context);
+
   // Retrieves the name associated with a discrete or continuous action.
   //
   // 'discrete_idx' shall be in the range [0, action_discrete_count()).
   // 'continuous_idx' shall be in the range [0, action_continuous_count()).
+  // 'text_idx' shall be in the range [0, action_text_count()).
   const char* (*action_discrete_name)(void* context, int discrete_idx);
   const char* (*action_continuous_name)(void* context, int continuous_idx);
+  const char* (*action_text_name)(void* context, int text_idx);
 
   // The range of acceptable values for an action.
   //
@@ -257,6 +391,8 @@ struct EnvCApi_s {
   // 'event_type_idx' shall be in range [0, event_type_count()).
   const char* (*event_type_name)(void* context, int event_type_idx);
 
+  // DEPRECATED: use properties to communicate this information.
+  //
   // An advisory metric that correlates discrete environment steps ("steps")
   // with real (wallclock) time: the number of steps per (real) second.
   int (*fps)(void* context);
@@ -285,16 +421,33 @@ struct EnvCApi_s {
   // 'event' is invalidated by any other API call.
   void (*event)(void* context, int event_idx, EnvCApi_Event* event);
 
-  // Sets the actions to use by future calls of 'advance'. Actions are "sticky",
-  // and the same action values will continue to be used by 'advance' until the
-  // actions are changed by this function.
+  // DEPRECATED: use act_discrete, act_continuous instead.
+  //
+  // Calling this function shall be equivalent to a call of
+  // 'act_discrete(context, actions discrete)' followed by a call of
+  // 'act_continuous(context, actions_continuous)'.
+  void (*act)(void* context,
+              const int actions_discrete[], const double actions_continuous[]);
+
+  // Sets the discrete actions to use by future calls of 'advance'.
+  // Actions are "sticky", and the same action values will continue to be used
+  // by 'advance' until the actions are changed by this function.
   //
   // 'actions_discrete' shall be an array of size 'action_discrete_count()'.
+  void (*act_discrete)(void* context, const int actions_discrete[]);
+
+  // Sets the continuous actions to use by future calls of 'advance'.
+  // Actions are "sticky", and the same action values will continue to be used
+  // by 'advance' until the actions are changed by this function.
+  //
   // 'actions_continuous' shall be an array of size 'action_continuous_count()'.
-  // Each action value shall satisfy the bounds given by the functions
-  // action_{discrete,continuous}_bounds above.
-  void (*act)(void* context, const int actions_discrete[],
-              const double actions_continuous[]);
+  void (*act_continuous)(void* context, const double actions_continuous[]);
+
+  // Sets the text to use by future calls of 'advance'.
+  // Each text action must be a null-terminated string.
+  //
+  // 'actions_text' shall be an array of size 'action_text_count()'.
+  void (*act_text)(void* context, const EnvCApi_TextAction actions_text[]);
 
   // Advances the environment by 'num_steps' steps, applying the currently
   // active set of actions. 'num_steps' shall be positive.

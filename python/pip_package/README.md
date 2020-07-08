@@ -17,9 +17,9 @@ Here's the short version if you have already set up the dependencies.
 
 ```sh
 git clone https://github.com/deepmind/lab.git && cd lab
-bazel build -c opt python/pip_package:build_pip_package
+bazel build -c opt --python_version=PY2 //python/pip_package:build_pip_package
 ./bazel-bin/python/pip_package/build_pip_package /tmp/dmlab_pkg
-pip install /tmp/dmlab_pkg/DeepMind_Lab-1.0-py2-none-any.whl --force-reinstall
+pip install /tmp/dmlab_pkg/deepmind_lab-1.0-py2-none-any.whl --force-reinstall
 ```
 
 #### Dependencies
@@ -40,14 +40,23 @@ used to build the Python module itself. If necessary, change the `WORKSPACE` and
 [build documentation](../../docs/users/build.md#lua-and-python-dependencies) for
 details.
 
-#### Python3
+#### Python 2 vs Python 3
 
-If you would like to use Python3 rather than Python2, then you may need to
-install `python3-*` variants of the dependencies, as well as `pip3`. You will
-probably want to invoke Bazel with `--python_path=/usr/bin/python3` and
-virtualenv with `virtualenv --python=python3`. You may also want to set the
-Python binary path, e.g. via `export PYTHON_BIN_PATH="/usr/bin/python3"` (unless
-you are already in a hermetic Python3 virtualenv environment).
+To select the Python API against which the DeepMind Lab module is built, build
+the PIP packaging script with the
+[`--python_version`](https://docs.bazel.build/versions/master/command-line-reference.html#flag--python_version)
+Bazel flag:
+
+* For Python 2: `bazel build -c opt --python_version=PY2 //python/pip_package:build_pip_package`
+* For Python 3: `bazel build -c opt --python_version=PY3 //python/pip_package:build_pip_package`
+
+For Python 3, you will then probably want to invoke virtualenv with `virtualenv
+--python=python3`, and you will want to set the Python binary path (e.g. via
+`export PYTHON_BIN_PATH="/usr/bin/python3"`) when running the packaging script.
+The resulting `.whl` file should contain the string `-py2-` or `-py3-` for a
+Python 2 or Python 3 build, respectively.
+
+As of Bazel 0.27, the default Python version is `PY3`.
 
 #### Build assets/binaries
 
@@ -59,17 +68,16 @@ haven't already, clone DeepMind Lab.
 $ git clone https://github.com/deepmind/lab.git
 ```
 
-
 To build the prerequisite assets and binaries for the Python package, change to
 the `lab` directory and run the Bazel command to build the pip package script:
 
 ```sh
 $ cd lab
-$ bazel build -c opt python/pip_package:build_pip_package
+$ bazel build -c opt //python/pip_package:build_pip_package
 ```
 
 If the build command fails, make sure you've grabbed the latest version and
-double check that you've installed all of the dependencies for DeepMind Lab,
+double-check that you've installed all of the dependencies for DeepMind Lab,
 then [file a bug](https://github.com/deepmind/lab/issues/new).
 
 Keep in mind that for most changes you make to DeepMind Lab, including adding
@@ -125,7 +133,7 @@ The package generation step will have created a `.whl` file in `/tmp/dmlab_pkg`.
 This is the binary distribution file for DeepMind Lab. Install it using:
 
 ```sh
-(agentenv)$ pip install /tmp/dmlab_pkg/DeepMind_Lab-1.0-py2-none-any.whl
+(agentenv)$ pip install /tmp/dmlab_pkg/deepmind_lab-1.0-py2-none-any.whl
 ```
 
 After a successful install you're now ready to start using DeepMind Lab as a
@@ -147,13 +155,13 @@ import deepmind_lab
 import numpy as np
 
 # Create a new environment object.
-lab = deepmind_lab.Lab("tests/empty_room_test", ['RGB_INTERLEAVED'],
+lab = deepmind_lab.Lab("demos/extra_entities", ['RGB_INTERLEAVED'],
                        {'fps': '30', 'width': '80', 'height': '60'})
 lab.reset(seed=1)
 
 # Execute 100 walk-forward steps and sum the returned rewards from each step.
-print sum(
-    [lab.step(np.array([0,0,0,1,0,0,0], dtype=np.intc)) for i in range(0, 100)])
+print(sum(
+    [lab.step(np.array([0,0,0,1,0,0,0], dtype=np.intc)) for i in range(0, 100)]))
 ```
 
 Run `agent.py`:
@@ -163,8 +171,8 @@ Run `agent.py`:
 ```
 
 DeepMind Lab prints debugging/diagnostic info to the console, but at the end it
-should print out a number showing the reward. For the seed provided, the reward
-should be 11.0.
+should print out a number showing the reward. For the map in the example, the
+reward should be 4.0 (since there are four apples in front of the spawn).
 
 #### Uninstall
 
@@ -187,3 +195,24 @@ will need to run this command once for each.
 You can use the same API for the standalone Python module as you do when
 building with the Bazel project. See:
 [DeepMind Lab environment documentation: Python](../../docs/users/python_api.md).
+
+## Bindings for the DeepMind "dm_env" API
+
+DeepMind has released a general API for reinforcement learning, called "dmenv":
+https://github.com/deepmind/dm_env
+
+We provide an adapter module, [`dmenv_module.py`](../dmenv_module.py),
+that exposes DeepMind Lab through that API. The adaptor module is also included
+in the above PIP package; if installed that way, the module can be imported with
+`from deepmind_lab import dmenv_module`. The additional dependencies for that
+module can be installed by requesting the PIP extra called `dmenv_module`, for
+example:
+
+```sh
+pip install /tmp/dmlab_pkg/deepmind_lab-1.0-py2-none-any.whl[dmenv_module]
+```
+
+Note that not all DeepMind Lab features may be exposed through the dm_env API.
+For example, at the time of writing, observation specs in dm_env do not allow
+dynamic shapes, whereas DeepMind Lab's native API (the
+[EnvCApi](../../third_party/rl_api/env_c_api.h)) does.

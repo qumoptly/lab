@@ -3,9 +3,9 @@
 
 package(default_visibility = ["//python/tests:__subpackages__"])
 
-licenses(["restricted"])  # GPLv2
+load("//python/tests:build_defs.bzl", "py2and3_test")
 
-PY_VERSION = "PY2"
+licenses(["restricted"])  # GPLv2
 
 py_library(
     name = "math_utils",
@@ -15,12 +15,11 @@ py_library(
     imports = ["python"],
 )
 
-py_test(
+py2and3_test(
     name = "math_utils_test",
     srcs = ["math_utils_test.py"],
     data = ["//:deepmind_lab.so"],
     imports = ["python"],
-    python_version = PY_VERSION,
     deps = [":math_utils"],
 )
 
@@ -32,12 +31,11 @@ py_library(
     imports = ["python"],
 )
 
-py_test(
+py2and3_test(
     name = "test_environment_decorator_test",
     srcs = ["test_environment_decorator_test.py"],
     data = ["//:deepmind_lab.so"],
     imports = ["python"],
-    python_version = PY_VERSION,
     deps = [
         ":test_environment_decorator",
         "@six_archive//:six",
@@ -56,12 +54,11 @@ py_library(
     ],
 )
 
-py_test(
+py2and3_test(
     name = "game_controller_test",
     srcs = ["game_controller_test.py"],
     data = ["//:deepmind_lab.so"],
     imports = ["python"],
-    python_version = PY_VERSION,
     deps = [
         ":game_controller",
         ":math_utils",
@@ -79,12 +76,11 @@ py_library(
     deps = [":game_controller"],
 )
 
-py_test(
+py2and3_test(
     name = "maze_game_controller_test",
     srcs = ["maze_game_controller_test.py"],
     data = ["//:deepmind_lab.so"],
     imports = ["python"],
-    python_version = PY_VERSION,
     deps = [
         ":maze_game_controller",
         ":test_environment_decorator",

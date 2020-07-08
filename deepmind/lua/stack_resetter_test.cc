@@ -1,3 +1,21 @@
+// Copyright (C) 2018-2019 Google Inc.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program; if not, write to the Free Software Foundation, Inc.,
+// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 #include "deepmind/lua/stack_resetter.h"
 
 #include "gmock/gmock.h"
@@ -24,10 +42,10 @@ using StackResetterTest = testing::TestWithVm;
 TEST_F(StackResetterTest, Reset) {
   ASSERT_EQ(lua_gettop(L), 0);
   {
-    StackResetter stack_resetter(L);
+    StackResetter stack_resetter1(L);
     Push(L, 10);
     {
-      StackResetter stack_resetter(L);
+      StackResetter stack_resetter2(L);
       Push(L, 20);
       EXPECT_EQ(lua_gettop(L), 2);
     }

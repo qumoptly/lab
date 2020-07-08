@@ -58,7 +58,6 @@ class LuaTensorTest : public ::testing::Test {
                                   tensor::LuaTensorConstructors, {default_fs});
   }
   std::mt19937_64 prbg_;
-  uint32_t mixer_seed_;
   lua::Vm lua_vm_;
 };
 
@@ -219,6 +218,73 @@ TEST_F(LuaTensorTest, Clone) {
   ASSERT_TRUE(bt_clone != nullptr);
   EXPECT_TRUE(bt->tensor_view().storage() != bt_clone->tensor_view().storage());
   EXPECT_TRUE(bt->tensor_view() == bt_clone->tensor_view());
+}
+
+constexpr char kSum[] = R"(
+local tensor = require 'dmlab.system.tensor'
+local bt = tensor.ByteTensor{{1, 2}, {3, 4}}
+return bt:sum()
+)";
+
+TEST_F(LuaTensorTest, Sum) {
+  lua_State* L = lua_vm_.get();
+  ASSERT_THAT(lua::PushScript(L, kSum, std::strlen(kSum), "kSum"),
+              IsOkAndHolds(1));
+  ASSERT_THAT(lua::Call(L, 0), IsOkAndHolds(1));
+  double sum;
+  ASSERT_TRUE(IsFound(lua::Read(L, 1, &sum)));
+  EXPECT_EQ(sum, 10);
+}
+
+constexpr char kProduct[] = R"(
+local tensor = require 'dmlab.system.tensor'
+local bt = tensor.ByteTensor{{1, 2}, {3, 4}}
+return bt:product()
+)";
+
+TEST_F(LuaTensorTest, Product) {
+  lua_State* L = lua_vm_.get();
+  ASSERT_THAT(lua::PushScript(L, kProduct, std::strlen(kProduct), "kProduct"),
+              IsOkAndHolds(1));
+  ASSERT_THAT(lua::Call(L, 0), IsOkAndHolds(1));
+  double prod;
+  ASSERT_TRUE(IsFound(lua::Read(L, 1, &prod)));
+  EXPECT_EQ(prod, 24.0);
+}
+
+constexpr char kLengthSquared[] = R"(
+local tensor = require 'dmlab.system.tensor'
+local bt = tensor.ByteTensor{{1, 2}, {3, 4}}
+return bt:lengthSquared()
+)";
+
+TEST_F(LuaTensorTest, LengthSquared) {
+  lua_State* L = lua_vm_.get();
+  ASSERT_THAT(lua::PushScript(L, kLengthSquared, std::strlen(kLengthSquared),
+                              "kLengthSquared"),
+              IsOkAndHolds(1));
+  ASSERT_THAT(lua::Call(L, 0), IsOkAndHolds(1));
+  double length_sqr;
+  ASSERT_TRUE(IsFound(lua::Read(L, 1, &length_sqr)));
+  EXPECT_EQ(length_sqr, 1 + 4 + 9 + 16);
+}
+
+constexpr char kDotProduct[] = R"(
+local tensor = require 'dmlab.system.tensor'
+local t1 = tensor.Int32Tensor{1, 2, 3, 4}
+local t2 = tensor.Int32Tensor{-1, 2, -3, 4}
+return t1:dot(t2)
+)";
+
+TEST_F(LuaTensorTest, DotProduct) {
+  lua_State* L = lua_vm_.get();
+  ASSERT_THAT(lua::PushScript(L, kDotProduct, std::strlen(kDotProduct),
+                              "kDotProduct"),
+              IsOkAndHolds(1));
+  ASSERT_THAT(lua::Call(L, 0), IsOkAndHolds(1));
+  double result;
+  ASSERT_TRUE(IsFound(lua::Read(L, 1, &result)));
+  EXPECT_EQ(result, -1 + 4 - 9 + 16);
 }
 
 constexpr char kTranspose[] = R"(
@@ -578,7 +644,7 @@ TEST_F(LuaTensorTest, kMMulOpIncompatibleDims) {
               IsOkAndHolds(1));
   auto result = lua::Call(L, 0);
   EXPECT_FALSE(result.ok());
-  EXPECT_THAT(result.error(), HasSubstr("incorrect matrix dimensions"));
+  EXPECT_THAT(result.error(), HasSubstr("Incorrect matrix dimensions"));
 }
 
 constexpr char kMMulOpIncompatibleType[] = R"(

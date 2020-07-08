@@ -2,7 +2,7 @@
 #   DeepMind Lab, a machine-learning research environment
 #   forked from ioquake/ioq3.
 
-licenses(["restricted"])  # GPLv2, code/tools/lcc is separate
+licenses(["restricted"])
 
 exports_files(["LICENSE"])
 
@@ -807,6 +807,7 @@ cc_library(
         "-lrt",
     ],
     deps = IOQ3_COMMON_DEPS,
+    alwayslink = 1,
 )
 
 cc_library(
@@ -826,6 +827,7 @@ cc_library(
     defines = IOQ3_COMMON_DEFINES,
     linkopts = ["-lOSMesa"],
     deps = IOQ3_COMMON_DEPS,
+    alwayslink = 1,
 )
 
 cc_library(
@@ -848,6 +850,7 @@ cc_library(
         "-lX11",
     ],
     deps = IOQ3_COMMON_DEPS,
+    alwayslink = 1,
 )
 
 cc_library(
@@ -870,6 +873,7 @@ cc_library(
         "-lGL",
     ],
     deps = IOQ3_COMMON_DEPS + ["//third_party/GL/util:egl_util"],
+    alwayslink = 1,
 )
 
 cc_binary(
@@ -935,7 +939,9 @@ cc_library(
         ":level_cache_types",
         "//third_party/rl_api:env_c_api",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/strings",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -976,6 +982,18 @@ cc_binary(
     ],
 )
 
+py_library(
+    name = "dmenv_module",
+    srcs = ["python/dmenv_module.py"],
+    data = ["//:deepmind_lab.so"],
+    imports = ["python"],
+    visibility = ["//python/tests:__subpackages__"],
+    deps = [
+        "@dm_env_archive//:dm_env",
+        "@six_archive//:six",
+    ],
+)
+
 py_binary(
     name = "python_random_agent",
     srcs = ["python/random_agent.py"],
@@ -1012,6 +1030,7 @@ test_suite(
         name = "load_level_test_" + level_name,
         size = "large",
         args = [level_name],
+        tags = ["notravis"],  # Takes too long for Travis
         deps = ["//testing:load_level_test_lib"],
     )
     for level_name in LOAD_TEST_SCRIPTS
@@ -1039,6 +1058,7 @@ test_suite(
         name = "seed_level_test_" + level_name,
         size = "large",
         args = [level_name],
+        tags = ["notravis"],  # Takes too long for Travis
         deps = ["//testing:seed_level_test_lib"],
     )
     for level_name in SEED_TEST_SCRIPTS
